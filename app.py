@@ -6,8 +6,11 @@ from agents.composer_agent import explain_composer_action
 from agents.feynman_agent import explain_concept, generate_intro
 from agents.qiskit_engineer import generate_code
 from agents.socratic_tutor import generate_problem
+from agents.router_agent import route_and_respond, classify_intent, AGENT_META
 from components.bloch_sphere import render_bloch_sphere
 from components.quantum_field import render_quantum_field
+from components.circuit_composer import render_circuit_composer
+from components.code_editor import render_sandbox_header, PRESET_EXPERIMENTS
 from utils.notebook_engine import execute_notebook_code
 from utils.quantum_engine import QuantumEngine
 
@@ -29,7 +32,7 @@ GATE_LIBRARY = {
     "X": {
         "label": "Pauli-X",
         "family": "Bit flip",
-        "description": "Rotates the qubit through pi around the X axis, swapping |0> and |1>.",
+        "description": "Rotates the qubit through π around the X axis, swapping |0⟩ and |1⟩.",
     },
     "Y": {
         "label": "Pauli-Y",
@@ -69,7 +72,7 @@ GATE_LIBRARY = {
     "CNOT": {
         "label": "Controlled-X",
         "family": "Entangling",
-        "description": "Flips the target only when the control is |1>, creating conditional motion.",
+        "description": "Flips the target only when the control is |1⟩, creating conditional motion.",
     },
 }
 
@@ -94,11 +97,11 @@ CURRICULUM = {
             "big_idea": "A qubit is a physical two-level system whose state points somewhere on the Bloch sphere.",
             "composer": "Move theta and phi, then use H, X, and Z to connect symbols to motion.",
             "checkpoint": "If the vector sits at the north pole, what outcome is guaranteed?",
-            "practice": "Prepare |0>, |1>, |+>, and |-> in Qiskit and compare their Bloch vectors.",
+            "practice": "Prepare |0⟩, |1⟩, |+⟩, and |−⟩ in Qiskit and compare their Bloch vectors.",
         },
         "Superposition": {
             "big_idea": "Superposition means the vector is not at a pole; measurement probabilities come from its projection.",
-            "composer": "Apply H to |0> and watch the vector land on the equator.",
+            "composer": "Apply H to |0⟩ and watch the vector land on the equator.",
             "checkpoint": "Why does a balanced superposition not mean the qubit is secretly both classical values?",
             "practice": "Run a Hadamard circuit with 1024 shots and explain why counts fluctuate.",
         },
@@ -106,11 +109,11 @@ CURRICULUM = {
             "big_idea": "Measurement projects the state onto a classical result and destroys most phase information.",
             "composer": "Compare the probability bars before and after gates that only change phase.",
             "checkpoint": "Which gates change probabilities, and which only change phase?",
-            "practice": "Measure X|0>, H|0>, and ZH|0>; compare statevector and sampled counts.",
+            "practice": "Measure X|0⟩, H|0⟩, and ZH|0⟩; compare statevector and sampled counts.",
         },
         "Entanglement": {
             "big_idea": "Entanglement is shared state: individual qubits can lose a pure vector while the pair stays ordered.",
-            "composer": "Apply H on q0, then CNOT q0 -> q1 to form a Bell state.",
+            "composer": "Apply H on q0, then CNOT q0 → q1 to form a Bell state.",
             "checkpoint": "Why can each single Bloch sphere look mixed while the two-qubit circuit is highly structured?",
             "practice": "Build all four Bell states and identify their measurement correlations.",
         },
@@ -120,7 +123,7 @@ CURRICULUM = {
             "big_idea": "Gates are reversible transformations; order matters because rotations around different axes do not generally commute.",
             "composer": "Compare H then Z versus Z then H and inspect the final vector.",
             "checkpoint": "Why can two circuits with the same gates produce different states?",
-            "practice": "Use Qiskit to test XZ versus ZX on |0> and |+>.",
+            "practice": "Use Qiskit to test XZ versus ZX on |0⟩ and |+⟩.",
         },
         "Phase Kickback": {
             "big_idea": "A controlled operation can push phase information backward into the control qubit.",
@@ -131,7 +134,7 @@ CURRICULUM = {
         "Parameterized Rotations": {
             "big_idea": "Rx, Ry, and Rz make circuits tunable, which is the basis of variational algorithms.",
             "composer": "Sweep an angle slider and watch the vector move continuously instead of jumping gate to gate.",
-            "checkpoint": "Which rotation changes measurement odds from |0>, and which initially hides as phase?",
+            "checkpoint": "Which rotation changes measurement odds from |0⟩, and which initially hides as phase?",
             "practice": "Create a circuit with a Parameter theta and bind three values.",
         },
     },
@@ -198,10 +201,15 @@ CURRICULUM = {
 }
 
 
+# ── Theme ──
+
 def inject_theme():
     st.markdown(
         """
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
     :root {
         --lab-bg: #07110f;
         --panel: rgba(12, 30, 28, 0.78);
@@ -222,29 +230,31 @@ def inject_theme():
             repeating-linear-gradient(90deg, rgba(101, 244, 212, 0.035) 0 1px, transparent 1px 86px),
             repeating-linear-gradient(0deg, rgba(246, 200, 95, 0.028) 0 1px, transparent 1px 86px),
             linear-gradient(135deg, #07110f 0%, #0d171d 45%, #161123 100%);
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: 'Space Grotesk', Inter, ui-sans-serif, system-ui, sans-serif;
     }
 
     .block-container {
-        padding-top: 2rem;
+        padding-top: 1.5rem;
         padding-bottom: 3rem;
         max-width: 1480px;
     }
 
     [data-testid="stSidebar"] {
-        background: rgba(6, 15, 15, 0.95);
+        background: rgba(6, 15, 15, 0.96);
         border-right: 1px solid var(--line);
     }
 
     h1, h2, h3 {
         color: var(--text) !important;
-        letter-spacing: 0;
+        font-family: 'Space Grotesk', sans-serif !important;
+        letter-spacing: -0.01em;
     }
 
-    p, li, label, div {
+    p, li, label, div, span {
         color: var(--text);
     }
 
+    /* ── Physics cards ── */
     .lab-hero {
         border: 1px solid var(--line);
         background:
@@ -254,36 +264,6 @@ def inject_theme():
         padding: 20px 22px;
         margin-bottom: 18px;
         box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
-        transform-style: preserve-3d;
-    }
-
-    .lab-eyebrow {
-        color: var(--cyan);
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.08rem;
-        text-transform: uppercase;
-        margin-bottom: 0.45rem;
-    }
-
-    .lab-hero h1 {
-        margin: 0 0 0.35rem 0;
-        font-size: clamp(2rem, 4vw, 4.6rem);
-        line-height: 1;
-    }
-
-    .lab-hero p {
-        color: var(--muted);
-        max-width: 920px;
-        margin: 0;
-        font-size: 1.02rem;
-    }
-
-    .metric-strip {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-        margin: 14px 0 20px 0;
     }
 
     .physics-card, .gate-card, .timeline-row {
@@ -296,31 +276,31 @@ def inject_theme():
         box-shadow:
             0 18px 38px rgba(0, 0, 0, 0.26),
             inset 0 1px 0 rgba(255, 255, 255, 0.06);
-        transform: translateZ(0);
-        transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+        transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
     }
 
-    .physics-card:hover, .gate-card:hover, .timeline-row:hover {
+    .physics-card:hover, .gate-card:hover {
         border-color: var(--line-strong);
         transform: translateY(-2px);
         box-shadow:
             0 22px 44px rgba(0, 0, 0, 0.31),
+            0 0 20px rgba(101, 244, 212, 0.06),
             inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
-    .physics-card strong, .gate-card strong {
-        color: var(--cyan);
+    .physics-card strong, .gate-card strong { color: var(--cyan); }
+    .physics-card span, .gate-card span { color: var(--muted); font-size: 0.9rem; }
+    .gate-card { min-height: 120px; }
+
+    /* ── Metric strip ── */
+    .metric-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        margin: 14px 0 20px 0;
     }
 
-    .physics-card span, .gate-card span {
-        color: var(--muted);
-        font-size: 0.9rem;
-    }
-
-    .gate-card {
-        min-height: 126px;
-    }
-
+    /* ── Timeline rows ── */
     .timeline-row {
         margin-bottom: 8px;
         display: flex;
@@ -336,19 +316,10 @@ def inject_theme():
         color: var(--gold);
         white-space: nowrap;
         font-size: 0.82rem;
+        font-family: 'JetBrains Mono', monospace;
     }
 
-    .lab-shell {
-        border: 1px solid rgba(111, 225, 205, 0.24);
-        border-radius: 8px;
-        padding: 16px;
-        background:
-            linear-gradient(160deg, rgba(9, 24, 23, 0.86), rgba(19, 18, 33, 0.72)),
-            repeating-linear-gradient(90deg, rgba(111, 225, 205, 0.035) 0 1px, transparent 1px 36px);
-        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
-        perspective: 900px;
-    }
-
+    /* ── Roadmap ── */
     .roadmap {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -358,42 +329,43 @@ def inject_theme():
 
     .roadmap-step {
         position: relative;
-        min-height: 134px;
+        min-height: 120px;
         border: 1px solid rgba(111, 225, 205, 0.25);
         border-radius: 8px;
         padding: 14px;
-        background:
-            linear-gradient(145deg, rgba(14, 33, 31, 0.9), rgba(23, 20, 39, 0.82));
+        background: linear-gradient(145deg, rgba(14, 33, 31, 0.9), rgba(23, 20, 39, 0.82));
         box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+        transition: border-color 200ms ease, transform 200ms ease;
     }
 
-    .roadmap-step strong {
-        color: var(--gold);
-        display: block;
-        font-size: 0.92rem;
-        margin-bottom: 8px;
+    .roadmap-step:hover {
+        border-color: var(--line-strong);
+        transform: translateY(-2px);
     }
 
-    .roadmap-step span {
-        color: var(--muted);
-        font-size: 0.88rem;
-        line-height: 1.45;
-    }
+    .roadmap-step strong { color: var(--gold); display: block; font-size: 0.92rem; margin-bottom: 8px; }
+    .roadmap-step span { color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
 
+    /* ── Buttons ── */
     .stButton > button {
         border-radius: 6px;
         border: 1px solid var(--line-strong);
         background: rgba(101, 244, 212, 0.08);
         color: var(--text);
         min-height: 2.55rem;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 500;
+        transition: all 200ms ease;
     }
 
     .stButton > button:hover {
         border-color: var(--cyan);
         background: rgba(101, 244, 212, 0.18);
         color: var(--text);
+        box-shadow: 0 0 16px rgba(101, 244, 212, 0.15);
     }
 
+    /* ── Tabs ── */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         border-bottom: 1px solid var(--line);
@@ -402,26 +374,119 @@ def inject_theme():
     .stTabs [data-baseweb="tab"] {
         border-radius: 6px 6px 0 0;
         color: var(--muted);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.88rem;
+        letter-spacing: 0.02em;
+        transition: color 200ms ease;
     }
 
     .stTabs [aria-selected="true"] {
-        color: var(--cyan);
+        color: var(--cyan) !important;
         border-bottom: 2px solid var(--cyan);
     }
 
+    /* ── Code blocks ── */
     .stCodeBlock, .stTextArea textarea {
         border: 1px solid var(--line) !important;
         border-radius: 8px !important;
+        font-family: 'JetBrains Mono', monospace !important;
     }
 
-    @media (max-width: 900px) {
-        .metric-strip {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    .stTextArea textarea {
+        background: #080e14 !important;
+        color: #e9fff9 !important;
+        font-size: 13px !important;
+        line-height: 1.6 !important;
+    }
 
-        .roadmap {
-            grid-template-columns: 1fr;
-        }
+    /* ── Chat messages ── */
+    [data-testid="stChatMessage"] {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background:
+            linear-gradient(145deg, rgba(12, 28, 26, 0.9), rgba(17, 18, 30, 0.85)) !important;
+        margin-bottom: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ── Custom progress bars ── */
+    .neon-bar-wrap {
+        background: rgba(10, 20, 18, 0.8);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 3px;
+        margin: 4px 0;
+    }
+
+    .neon-bar {
+        height: 22px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        color: #0a1a19;
+        transition: width 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .neon-bar-cyan {
+        background: linear-gradient(90deg, #65f4d4, #4db8a0);
+        box-shadow: 0 0 12px rgba(101, 244, 212, 0.4);
+    }
+
+    /* ── Preset chips ── */
+    .preset-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 10px 0 16px 0;
+    }
+
+    .preset-chip {
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 6px 16px;
+        background: rgba(101, 244, 212, 0.06);
+        color: var(--cyan);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 200ms ease;
+    }
+
+    .preset-chip:hover {
+        border-color: var(--cyan);
+        background: rgba(101, 244, 212, 0.14);
+        box-shadow: 0 0 14px rgba(101, 244, 212, 0.15);
+    }
+
+    /* ── Lab shell ── */
+    .lab-shell {
+        border: 1px solid rgba(111, 225, 205, 0.24);
+        border-radius: 8px;
+        padding: 16px;
+        background:
+            linear-gradient(160deg, rgba(9, 24, 23, 0.86), rgba(19, 18, 33, 0.72)),
+            repeating-linear-gradient(90deg, rgba(111, 225, 205, 0.035) 0 1px, transparent 1px 36px);
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(7, 17, 15, 0.5); }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(101, 244, 212, 0.25);
+        border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(101, 244, 212, 0.4); }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+        .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .roadmap { grid-template-columns: 1fr; }
     }
 </style>
         """,
@@ -429,17 +494,23 @@ def inject_theme():
     )
 
 
+# ── Session State ──
+
 def init_session_state():
     defaults = {
         "composer_gates": [],
         "composer_last_gate": None,
         "composer_ai_feedback": "",
         "num_qubits": 2,
+        "chat_history": [],
+        "sandbox_code": PRESET_EXPERIMENTS["Bell State"]["code"],
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
+
+# ── Metric Strip ──
 
 def render_metric_strip(engine):
     probabilities = engine.get_probabilities()
@@ -460,12 +531,14 @@ def render_metric_strip(engine):
     )
 
 
+# ── Gate Helpers ──
+
 def format_gate(gate_data, index):
     gate = gate_data["gate"]
     target = gate_data["target"]
     control = gate_data.get("control")
     if gate == "CNOT":
-        detail = f"control q{control} -> target q{target}"
+        detail = f"control q{control} → target q{target}"
     elif gate in {"RX", "RY", "RZ"}:
         detail = f"q{target}, angle {float(gate_data.get('angle', 0.0)):.3f} rad"
     else:
@@ -488,6 +561,8 @@ def build_engine():
     engine.gates = st.session_state.composer_gates
     return engine
 
+
+# ── Gate Palette ──
 
 def render_gate_palette():
     st.markdown("#### Gate Palette")
@@ -517,7 +592,7 @@ def render_gate_palette():
 
     angle = None
     if selected_gate in {"RX", "RY", "RZ"}:
-        angle_turns = st.slider("Rotation angle", -2.0, 2.0, 0.5, 0.125, help="Measured in multiples of pi.")
+        angle_turns = st.slider("Rotation angle", -2.0, 2.0, 0.5, 0.125, help="Measured in multiples of π.")
         angle = angle_turns * math.pi
         st.caption(f"Angle = {angle_turns:.3f}π = {angle:.3f} radians")
 
@@ -527,37 +602,20 @@ def render_gate_palette():
 
     col_undo, col_reset = st.columns(2)
     with col_undo:
-        if st.button("Undo", use_container_width=True, disabled=not st.session_state.composer_gates):
+        if st.button("⟲ Undo", use_container_width=True, disabled=not st.session_state.composer_gates):
             st.session_state.composer_gates.pop()
             st.session_state.composer_last_gate = None
             st.session_state.composer_ai_feedback = ""
             st.rerun()
     with col_reset:
-        if st.button("Reset", use_container_width=True, disabled=not st.session_state.composer_gates):
+        if st.button("⟳ Reset", use_container_width=True, disabled=not st.session_state.composer_gates):
             st.session_state.composer_gates = []
             st.session_state.composer_last_gate = None
             st.session_state.composer_ai_feedback = ""
             st.rerun()
 
 
-def render_timeline():
-    st.markdown("#### Circuit Timeline")
-    if not st.session_state.composer_gates:
-        st.info("Start with H on q0, then add CNOT q0 -> q1 to create your first Bell state.")
-        return
-
-    for index, gate_data in enumerate(st.session_state.composer_gates, start=1):
-        title, detail = format_gate(gate_data, index)
-        st.markdown(
-            f"""
-<div class="timeline-row">
-    <div><strong>{title}</strong><br><span>{detail}</span></div>
-    <div class="timeline-chip">{GATE_LIBRARY[gate_data["gate"]]["family"]}</div>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
+# ── Composer Feedback ──
 
 def render_composer_feedback():
     st.markdown("#### Physics Coach")
@@ -584,18 +642,31 @@ def render_composer_feedback():
                 else:
                     sequence.append(f"{gate['gate']} on q{gate['target']}")
             st.session_state.composer_ai_feedback = st.write_stream(
-                explain_composer_action(gate_name, q_idx, " -> ".join(sequence))
+                explain_composer_action(gate_name, q_idx, " → ".join(sequence))
             )
         else:
             st.markdown(st.session_state.composer_ai_feedback)
 
 
+# ── Probability Bars ──
+
 def render_probabilities(engine):
     st.markdown("#### Measurement Probabilities")
     probabilities = engine.get_probabilities()
     for basis, value in probabilities.items():
-        st.progress(float(value), text=f"|{basis}>  {value * 100:.1f}%")
+        pct = value * 100
+        width = max(pct, 0.5)
+        st.markdown(
+            f"""
+<div class="neon-bar-wrap">
+    <div class="neon-bar neon-bar-cyan" style="width:{width}%;">|{basis}⟩ {pct:.1f}%</div>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
+
+# ── State Readout ──
 
 def render_state_readout(angles):
     st.markdown("#### Bloch Readout")
@@ -613,6 +684,8 @@ def render_state_readout(angles):
         )
 
 
+# ── Learning Roadmap ──
+
 def render_learning_roadmap():
     st.markdown("### Full Qiskit Learning Path")
     steps = []
@@ -629,6 +702,8 @@ def render_learning_roadmap():
 
     st.markdown(f"<div class='roadmap'>{''.join(steps)}</div>", unsafe_allow_html=True)
 
+
+# ── Learn Tab ──
 
 def render_curriculum():
     st.sidebar.header("Learning Path")
@@ -731,6 +806,8 @@ def render_curriculum():
             st.markdown(st.session_state[f"tutor_{module}"])
 
 
+# ── Compose Tab ──
+
 def render_composer():
     st.sidebar.header("Composer Setup")
     selected_qubits = st.sidebar.slider("Qubits", 1, 4, st.session_state.num_qubits)
@@ -745,10 +822,13 @@ def render_composer():
     angles = engine.run_simulation()
     render_metric_strip(engine)
 
+    # Visual circuit composer
+    st.markdown("#### Visual Circuit")
+    render_circuit_composer(st.session_state.composer_gates, st.session_state.num_qubits)
+
     controls, visual = st.columns([4, 8])
     with controls:
         render_gate_palette()
-        render_timeline()
         render_composer_feedback()
 
     with visual:
@@ -773,27 +853,83 @@ def render_composer():
         st.code(engine.get_qiskit_code(), language="python")
 
 
+# ── Chat Tab ──
+
+def render_chat():
+    st.markdown("## A.C.E. Chat Console")
+    st.caption("Ask anything about quantum computing. Your message is automatically routed to the right specialist agent.")
+
+    # Display chat history
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"], avatar=msg.get("avatar", None)):
+            if msg.get("agent_name"):
+                st.markdown(f"**{msg['agent_name']}**")
+            st.markdown(msg["content"])
+
+    # Chat input
+    user_input = st.chat_input("Ask about quantum computing, request code, or say 'test me'...")
+
+    if user_input:
+        # Add user message
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": user_input,
+        })
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        # Classify and route
+        intent = classify_intent(user_input)
+        meta = AGENT_META.get(intent, AGENT_META["general"])
+        _, response_stream = route_and_respond(user_input, intent=intent)
+
+        with st.chat_message("assistant", avatar=meta["avatar"]):
+            st.markdown(f"**{meta['name']}** · *{meta['description']}*")
+            response_text = st.write_stream(response_stream)
+
+        # Save to history
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "avatar": meta["avatar"],
+            "agent_name": meta["name"],
+            "content": response_text,
+        })
+
+
+# ── Sandbox Tab ──
+
 def render_sandbox():
     st.markdown("## Qiskit Sandbox")
     st.caption("Run short Qiskit experiments locally and compare the output with the visual composer.")
 
+    # Terminal header
+    render_sandbox_header()
+
+    # Preset buttons
+    st.markdown("**Preset Experiments**")
+    preset_cols = st.columns(len(PRESET_EXPERIMENTS))
+    for idx, (name, data) in enumerate(PRESET_EXPERIMENTS.items()):
+        with preset_cols[idx]:
+            if st.button(f"⚡ {name}", use_container_width=True, help=data["description"]):
+                st.session_state.sandbox_code = data["code"]
+                st.rerun()
+
+    # Code editor
     notebook_code = st.text_area(
         "Python / Qiskit",
-        value="""from qiskit import QuantumCircuit
-
-qc = QuantumCircuit(2)
-qc.h(0)
-qc.cx(0, 1)
-
-print("Bell circuit:")
-print(qc)
-
-fig = qc.draw(output="mpl")
-""",
+        value=st.session_state.sandbox_code,
         height=320,
+        label_visibility="collapsed",
     )
+    st.session_state.sandbox_code = notebook_code
 
-    if st.button("Run Sandbox", type="primary", use_container_width=True):
+    col_run, col_explain = st.columns([1, 1])
+    with col_run:
+        run_clicked = st.button("▶ Run Sandbox", type="primary", use_container_width=True)
+    with col_explain:
+        explain_clicked = st.button("🧠 Explain This Code", use_container_width=True)
+
+    if run_clicked:
         with st.spinner("Running local Qiskit code..."):
             result = execute_notebook_code(notebook_code)
 
@@ -814,19 +950,37 @@ fig = qc.draw(output="mpl")
             for fig in result["figures"]:
                 st.pyplot(fig)
 
+    if explain_clicked:
+        with st.chat_message("assistant", avatar="🧠"):
+            st.markdown("**A.C.E. Code Explainer**")
+            from agents.feynman_agent import explain_concept
+            from agents.base_agent import generate_stream
+            explain_prompt = """
+You are A.C.E., a warm and brilliant code tutor. The user has written Qiskit code.
+Explain what each significant line does in plain English, referencing the quantum physics involved.
+Be encouraging and address the user as 'Boss' or 'Creator'. Use markdown formatting.
+Keep the explanation clear, educational, and under 300 words.
+"""
+            response = st.write_stream(generate_stream(explain_prompt, f"Explain this code:\n\n```python\n{notebook_code}\n```"))
+
+
+# ── Main ──
 
 inject_theme()
 init_session_state()
 
 render_quantum_field()
 
-tab_learn, tab_compose, tab_sandbox = st.tabs(["Learn", "Compose", "Sandbox"])
+tab_learn, tab_compose, tab_chat, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "💬 A.C.E. Chat", "🧪 Sandbox"])
 
 with tab_learn:
     render_curriculum()
 
 with tab_compose:
     render_composer()
+
+with tab_chat:
+    render_chat()
 
 with tab_sandbox:
     render_sandbox()
