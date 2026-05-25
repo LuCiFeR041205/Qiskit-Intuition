@@ -1,0 +1,27 @@
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+bin/
+lib/
+share/
+
+# Sensitive Credentials & API Keys
+.env
+.env.*
+secrets.toml
+
+# Python Caches & Compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Streamlit specific
+.streamlit/
