@@ -1,7 +1,11 @@
 import io
+import os
 import sys
 import contextlib
 import traceback
+
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/qiskit-intuition-matplotlib")
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

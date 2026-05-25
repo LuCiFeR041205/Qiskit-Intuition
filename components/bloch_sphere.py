@@ -3,7 +3,7 @@ import streamlit.components.v1 as components
 
 def render_bloch_sphere(theta, phi, qubit_name="q"):
     """
-    Renders an interactive, holographic 3D Bloch sphere using Three.js inside Streamlit.
+    Renders an interactive 3D Bloch sphere using Three.js inside Streamlit.
     
     Parameters:
     - theta: Polar angle in radians (0 to PI).
@@ -25,13 +25,15 @@ def render_bloch_sphere(theta, phi, qubit_name="q"):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stark Quantum Console: Bloch Sphere</title>
+    <title>Qiskit Intuition Lab: Bloch Sphere</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #050A15;
+            background:
+                linear-gradient(145deg, #06110f, #131225),
+                repeating-linear-gradient(90deg, rgba(0, 240, 255, 0.06) 0 1px, transparent 1px 42px);
             color: #00F0FF;
             font-family: 'Courier New', Courier, monospace;
         }
@@ -109,7 +111,7 @@ def render_bloch_sphere(theta, phi, qubit_name="q"):
 
         <!-- HUD Info Panels -->
         <div class="hud-overlay hud-title">
-            <div>SYSTEM: STARK QUANTUM MAIN FRAME</div>
+            <div>SYSTEM: QISKIT INTUITION LAB</div>
             <div>COMPONENT: 3D BLOCH SPHERE</div>
             <div style="color: #ffaa00; font-weight: bold; margin-top: 4px;">TARGET QUBIT: {qubit_name}</div>
         </div>
@@ -163,7 +165,7 @@ def render_bloch_sphere(theta, phi, qubit_name="q"):
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         
-        // Stark blue background ambient glow
+        // Soft laboratory background glow
         const ambientLight = new THREE.AmbientLight(0x05152a);
         scene.add(ambientLight);
 
