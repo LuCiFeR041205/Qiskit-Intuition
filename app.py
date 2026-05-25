@@ -154,7 +154,7 @@ with tab_curr:
             st.markdown("""
             ### INITIALIZING CONSOLE ACADEMY...
             
-            Welcome to the Stark Industries Quantum Console, Mr. Stark.
+            Welcome to the Stark Industries Quantum Console, Boss.
             
             I am **A.C.E.** (Advanced Conceptual Explainer), your diagnostic AI. The learning parameters are fully operational, reconfigured to completely bypass traditional linear algebra in favor of visual, physics-first mechanics.
             
@@ -192,7 +192,7 @@ with tab_curr:
                     st.markdown("""
                     <div style="border: 1px solid rgba(0, 240, 255, 0.2); padding: 12px; background: rgba(0, 240, 255, 0.02); margin-bottom: 15px;">
                         <div style="color: #00F0FF; font-weight: bold; font-size: 13px; text-transform: uppercase; margin-bottom: 4px;">CONSOLE SLIDER CONTROLS</div>
-                        <span style="font-size: 11px; color: #4DB8FF;">Sir, adjust the angles manually to explore the Hilbert space.</span>
+                        <span style="font-size: 11px; color: #4DB8FF;">Boss, adjust the angles manually to explore the Hilbert space.</span>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -250,14 +250,14 @@ with tab_curr:
                 st.markdown("### MANUAL OVERRIDE")
                 user_answer = st.text_area("Input response to Diagnostic Protocol:", placeholder="Terminal active...")
                 if st.button("SUBMIT DIAGNOSTIC", type="primary"):
-                    st.success("Diagnostics confirmed, Sir. Outstanding logic.")
+                    st.success("Diagnostics confirmed, Boss. Outstanding logic.")
     else:
         st.info(f"ACCESS RESTRICTED: {phase} requires higher authorization clearance.")
 
 # ==================== TAB 2: STARK COMPOSER BOARD ====================
 with tab_comp:
     st.markdown("### 🎛️ STARK QUANTUM COMPOSER")
-    st.markdown("Sir, click buttons below to construct a quantum circuit in real-time. View the dynamic circuit diagram and 3D Bloch sphere projections instantly as you edit.")
+    st.markdown("Boss, click buttons below to construct a quantum circuit in real-time. View the dynamic circuit diagram and 3D Bloch sphere projections instantly as you edit.")
     
     # Initialize session state for Composer
     if "composer_gates" not in st.session_state:
@@ -338,7 +338,7 @@ with tab_comp:
         else:
             st.markdown("""
             <div style="border-left: 2px solid #00F0FF; padding-left: 10px; font-size: 11px; color: #8B949E; font-family: monospace;">
-                Sir, the composer circuit is empty. Apply a gate using the mainboard controls above and I will instantly analyze the physical state vector shift.
+                Boss, the composer circuit is empty. Apply a gate using the mainboard controls above and I will instantly analyze the physical state vector shift.
             </div>
             """, unsafe_allow_html=True)
             
@@ -365,7 +365,7 @@ with tab_comp:
 # ==================== TAB 3: DIAGNOSTIC SANDBOX ====================
 with tab_sandbox:
     st.markdown("### 💻 STARK DIAGNOSTIC SANDBOX (NOTEBOOK)")
-    st.markdown("Sir, this isolated sandbox allows you to compile, write, and execute raw Qiskit and Python code directly inside the terminal. Matplotlib outputs and stdout are grabbed live.")
+    st.markdown("Boss, this isolated sandbox allows you to compile, write, and execute raw Qiskit and Python code directly inside the terminal. Matplotlib outputs and stdout are grabbed live.")
     
     notebook_code = st.text_area(
         "Sandbox Code Terminal:",
@@ -396,9 +396,9 @@ fig = qc.draw(output='mpl')
             st.divider()
             
             if res['success']:
-                st.success("Execution completed successfully, Sir.")
+                st.success("Execution completed successfully, Boss.")
             else:
-                st.error("Execution failed: Traceback compiled below, Sir.")
+                st.error("Execution failed: Traceback compiled below, Boss.")
                 st.code(res['error'], language="python")
                 
             if res['stdout']:
