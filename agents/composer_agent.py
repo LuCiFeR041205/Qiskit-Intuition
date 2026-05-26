@@ -9,6 +9,6 @@ Analyze the latest gate they added to the circuit and explain its physical effec
 - Keep it under 120 words. Be highly engaging and physical, referencing the 3D Bloch Sphere or the circuit diagram.
 """
 
-def explain_composer_action(latest_gate: str, qubit: int, full_circuit_desc: str):
+def explain_composer_action(latest_gate: str, qubit: int, full_circuit_desc: str, api_key: str = None):
     user_prompt = f"The user just added the gate '{latest_gate}' to Qubit {qubit}. The full sequence of gates in the circuit is currently: {full_circuit_desc}. Warmly explain the physical effect of this addition."
-    return generate_stream(COMPOSER_PROMPT, user_prompt)
+    return generate_stream(COMPOSER_PROMPT, user_prompt, api_key=api_key)
