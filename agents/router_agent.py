@@ -51,19 +51,59 @@ AGENT_META = {
 }
 
 
-def classify_intent(user_message: str) -> str:
-    """Classify user intent into explain/code/test/general."""
-    from .base_agent import generate_stream
+import os
+import re
 
-    chunks = []
-    for chunk in generate_stream(ROUTER_PROMPT, user_message):
-        chunks.append(chunk)
-    result = "".join(chunks).strip().lower()
 
-    for category in ("explain", "code", "test", "general"):
-        if category in result:
-            return category
+def _keyword_classify(msg: str) -> str:
+    """Fast, deterministic intent classification using keyword patterns."""
+    lower = msg.lower().strip()
+
+    code_patterns = re.compile(
+        r"\b(code|show me|write|implement|qiskit|circuit|example|snippet|program|script|build me)\b"
+    )
+    test_patterns = re.compile(
+        r"\b(test me|quiz|challenge|check my|assess|question me|grill)\b"
+    )
+    explain_patterns = re.compile(
+        r"\b(explain|what is|what are|how does|why does|tell me about|describe|intuition|analogy|meaning)\b"
+    )
+
+    if test_patterns.search(lower):
+        return "test"
+    if code_patterns.search(lower):
+        return "code"
+    if explain_patterns.search(lower):
+        return "explain"
     return "general"
+
+
+def classify_intent(user_message: str) -> str:
+    """Classify user intent. Uses keywords first; tries Gemini only when the
+    API key is set and keywords return 'general' (ambiguous)."""
+    keyword_result = _keyword_classify(user_message)
+
+    # If keywords gave a clear specialist match, use it — no API call needed
+    if keyword_result != "general":
+        return keyword_result
+
+    # For ambiguous messages, try Gemini if available
+    if not os.environ.get("GEMINI_API_KEY"):
+        return keyword_result
+
+    try:
+        chunks = []
+        for chunk in generate_stream(ROUTER_PROMPT, user_message):
+            chunks.append(chunk)
+        result = "".join(chunks).strip().lower()
+
+        for category in ("explain", "code", "test", "general"):
+            if category in result:
+                return category
+    except Exception:
+        pass
+
+    return keyword_result
 
 
 def route_and_respond(user_message: str, intent: str = None):

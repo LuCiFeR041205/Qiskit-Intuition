@@ -42,7 +42,7 @@ fig = qc.draw(output='mpl')
         "description": "Transfer a quantum state using entanglement and classical bits.",
         "code": """from qiskit import QuantumCircuit
 
-qc = QuantumCircuit(3, 3)
+qc = QuantumCircuit(3, 2)
 
 # Prepare the state to teleport on q0
 qc.rx(1.2, 0)
@@ -58,16 +58,23 @@ qc.cx(0, 1)
 qc.h(0)
 qc.barrier()
 
-# Measure Alice's qubits
+# Measure Alice's qubits into classical bits
 qc.measure(0, 0)
 qc.measure(1, 1)
 qc.barrier()
 
-# Bob's conditional corrections
-qc.cx(1, 2)
-qc.cz(0, 2)
+# Bob's classically-conditioned corrections:
+# If classical bit 1 (Alice's q1 measurement) is 1 → apply X to q2
+# If classical bit 0 (Alice's q0 measurement) is 1 → apply Z to q2
+# Note: In Qiskit 1.0+ deferred (dynamic) circuits, use .c_if:
+with qc.if_test((1, 1)):
+    qc.x(2)
+with qc.if_test((0, 1)):
+    qc.z(2)
 
 print("Quantum Teleportation Circuit:")
+print("Bob's corrections are classically conditioned on Alice's measurements.")
+print()
 print(qc)
 fig = qc.draw(output='mpl')
 """,

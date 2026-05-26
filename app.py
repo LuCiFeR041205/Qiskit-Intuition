@@ -3,7 +3,7 @@ import math
 import streamlit as st
 
 from agents.composer_agent import explain_composer_action
-from agents.feynman_agent import explain_concept, generate_intro
+from agents.feynman_agent import explain_concept
 from agents.qiskit_engineer import generate_code
 from agents.socratic_tutor import generate_problem
 from agents.router_agent import route_and_respond, classify_intent, AGENT_META
@@ -773,20 +773,21 @@ def render_curriculum():
 
     st.divider()
     st.markdown("### AI Teaching Lab")
-    if f"intro_{module}" not in st.session_state:
-        st.session_state[f"intro_{module}"] = ""
+    if f"feynman_{module}" not in st.session_state:
         st.session_state[f"feynman_{module}"] = ""
         st.session_state[f"code_{module}"] = ""
         st.session_state[f"tutor_{module}"] = ""
 
     with st.chat_message("assistant", avatar="⚛️"):
         st.markdown("**A.C.E. Tutor**")
-        if not st.session_state[f"intro_{module}"]:
-            st.session_state[f"intro_{module}"] = st.write_stream(generate_intro(module))
-        else:
-            st.markdown(st.session_state[f"intro_{module}"])
+        st.markdown(
+            f"Welcome to the **{module}** module. "
+            f"{lesson['big_idea']} "
+            f"Use the button below to activate the AI teaching agents, "
+            f"or explore the Bloch sphere and composer on your own first."
+        )
 
-    if st.button("Generate Explanation, Code, and Checkpoint", use_container_width=True):
+    if st.button("🚀 Generate Explanation, Code, and Checkpoint", use_container_width=True):
         with st.chat_message("assistant", avatar="🧠"):
             st.markdown("**Physical intuition**")
             st.session_state[f"feynman_{module}"] = st.write_stream(explain_concept(module))
