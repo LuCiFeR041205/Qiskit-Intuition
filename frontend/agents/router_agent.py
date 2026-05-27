@@ -2,17 +2,19 @@ import os
 import requests
 import json
 import streamlit as st
-from .base_agent import BACKEND_URL, is_backend_online, generate_stream
-from agents.router_agent import (
-    _keyword_classify,
-    classify_intent as local_classify_intent,
-    route_and_respond as local_route_and_respond,
-    explain_concept_chat as local_explain_concept_chat,
-    generate_code_chat as local_generate_code_chat,
-    generate_problem_chat as local_generate_problem_chat,
-    general_chat as local_general_chat,
-    AGENT_META
-)
+from .base_agent import BACKEND_URL, is_backend_online, generate_stream, load_root_agent
+
+# Load root-level router_agent by file path — avoids circular import
+_root_router = load_root_agent("router_agent")
+_keyword_classify          = _root_router._keyword_classify
+local_classify_intent      = _root_router.classify_intent
+local_route_and_respond    = _root_router.route_and_respond
+local_explain_concept_chat = _root_router.explain_concept_chat
+local_generate_code_chat   = _root_router.generate_code_chat
+local_generate_problem_chat= _root_router.generate_problem_chat
+local_general_chat         = _root_router.general_chat
+AGENT_META                 = _root_router.AGENT_META
+
 
 def classify_intent(user_message: str) -> str:
     if is_backend_online():

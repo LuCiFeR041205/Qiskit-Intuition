@@ -1,5 +1,4 @@
 from .base_agent import stream_from_backend, is_backend_online
-from agents.composer_agent import explain_composer_action as local_explain_composer_action
 
 def explain_composer_action_local_fallback(latest_gate: str, qubit: int, full_circuit_desc: str):
     # Rule-based physical explanation of adding a gate in British AI persona

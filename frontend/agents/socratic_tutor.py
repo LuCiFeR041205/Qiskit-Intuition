@@ -1,9 +1,10 @@
-from .base_agent import stream_from_backend
-from agents.socratic_tutor import generate_problem as local_generate_problem
+from .base_agent import stream_from_backend, load_root_agent
+
+_root = load_root_agent("socratic_tutor")
 
 def generate_problem(concept: str):
     return stream_from_backend(
         "challenge",
         {"concept": concept},
-        local_generate_problem(concept)
+        _root.generate_problem(concept)
     )
