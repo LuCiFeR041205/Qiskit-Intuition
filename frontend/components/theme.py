@@ -39,10 +39,18 @@ def inject_theme():
     .stApp {
         color: var(--text);
         background:
+            radial-gradient(circle at 50% 0%, rgba(101, 244, 212, 0.1) 0%, transparent 50%),
             repeating-linear-gradient(90deg, rgba(101, 244, 212, 0.035) 0 1px, transparent 1px 86px),
             repeating-linear-gradient(0deg, rgba(246, 200, 95, 0.028) 0 1px, transparent 1px 86px),
-            linear-gradient(135deg, #07110f 0%, #0d171d 45%, #161123 100%);
+            linear-gradient(135deg, #050a0a 0%, #0a111a 45%, #100b1a 100%);
         font-family: 'Space Grotesk', Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    
+    @keyframes hologram-glitch {
+        0% { opacity: 0.8; transform: translateX(0); }
+        5% { opacity: 1; transform: translateX(1px); filter: drop-shadow(0 0 5px var(--cyan)); }
+        10% { opacity: 0.8; transform: translateX(-1px); filter: none; }
+        100% { opacity: 0.8; transform: translateX(0); }
     }
 
     .block-container {
@@ -60,6 +68,7 @@ def inject_theme():
         color: var(--text) !important;
         font-family: 'Space Grotesk', sans-serif !important;
         letter-spacing: -0.01em;
+        text-shadow: 0 0 15px rgba(101, 244, 212, 0.2);
     }
 
     p, li, label, div, span {
@@ -142,12 +151,14 @@ def inject_theme():
     .roadmap-step {
         position: relative;
         min-height: 120px;
-        border: 1px solid rgba(111, 225, 205, 0.25);
+        border: 1px solid rgba(111, 225, 205, 0.4);
         border-radius: 8px;
         padding: 14px;
-        background: linear-gradient(145deg, rgba(14, 33, 31, 0.9), rgba(23, 20, 39, 0.82));
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
-        transition: border-color 200ms ease, transform 200ms ease;
+        background: linear-gradient(145deg, rgba(14, 33, 31, 0.8), rgba(23, 20, 39, 0.7));
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3), 0 0 15px rgba(101, 244, 212, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
     }
 
     .roadmap-step:hover {
@@ -172,9 +183,10 @@ def inject_theme():
 
     .stButton > button:hover {
         border-color: var(--cyan);
-        background: rgba(101, 244, 212, 0.18);
-        color: var(--text);
-        box-shadow: 0 0 16px rgba(101, 244, 212, 0.15);
+        background: rgba(101, 244, 212, 0.25);
+        color: #fff;
+        box-shadow: 0 0 20px rgba(101, 244, 212, 0.4);
+        transform: scale(1.02);
     }
 
     /* ── Tabs ── */
