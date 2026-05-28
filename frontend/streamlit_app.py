@@ -583,9 +583,6 @@ def render_composer():
         
         st.markdown("#### 🗣️ Natural Language Circuit Builder")
         st.info("A.C.E. Builder is running locally. Go to the Copilot tab to chat!")
-                    else:
-                        st.error("Could not build circuit. Please provide a Gemini API Key in the sidebar or check your prompt.")
-
         controls, feedback = st.columns([4, 8])
         with controls:
             render_gate_palette()
@@ -780,7 +777,8 @@ with tab_compose:
     render_composer()
 
 with tab_quests:
-    render_quest_tab()
+    q_engine = build_engine()
+    render_quest_tab(q_engine)
 
 with tab_chat:
     render_chat()

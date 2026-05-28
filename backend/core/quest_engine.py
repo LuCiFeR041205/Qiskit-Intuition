@@ -48,7 +48,7 @@ def calculate_fidelity(state1, state2):
 def get_quests():
     return QUESTS
 
-def render_quest_tab():
+def render_quest_tab(engine):
     st.markdown("## 🎯 Quantum Quests")
     st.caption("Complete these challenges by building the correct circuit in the Composer tab!")
     
@@ -80,9 +80,7 @@ def render_quest_tab():
             
     st.markdown("### Fidelity Scanner")
     
-    # We check the current state vector from the engine (assuming it's cached or we can get it from engine run)
-    from frontend.streamlit_app import build_engine
-    engine = build_engine()
+    # We check the current state vector from the engine passed in
     angles = engine.run_simulation(noisy=False)
     
     current_state = engine._last_simulation
