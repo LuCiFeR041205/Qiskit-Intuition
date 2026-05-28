@@ -718,6 +718,8 @@ def init_session_state():
         "chat_history": [],
         "sandbox_code": PRESET_EXPERIMENTS["Bell State"]["code"],
         "user_gemini_api_key": "",
+        "eli5_mode": False,
+        "noisy_simulation": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -727,7 +729,7 @@ def init_session_state():
 # ── Metric Strip ──
 
 def render_metric_strip(engine):
-    probabilities = engine.get_probabilities()
+    probabilities = engine.get_probabilities(noisy=st.session_state.get("noisy_simulation", False))
     entangling_gates = sum(1 for gate in st.session_state.composer_gates if gate["gate"] == "CNOT")
     depth = len(st.session_state.composer_gates)
     nonzero = sum(1 for value in probabilities.values() if value > 1e-9)
@@ -856,7 +858,7 @@ def render_composer_feedback():
                 else:
                     sequence.append(f"{gate['gate']} on q{gate['target']}")
             st.session_state.composer_ai_feedback = st.write_stream(
-                explain_composer_action(gate_name, q_idx, " → ".join(sequence))
+                explain_composer_action(gate_name, q_idx, " → ".join(sequence), eli5_mode=st.session_state.get("eli5_mode", False))
             )
         else:
             st.markdown(st.session_state.composer_ai_feedback)
@@ -866,7 +868,7 @@ def render_composer_feedback():
 
 def render_probabilities(engine):
     st.markdown("#### Measurement Probabilities")
-    probabilities = engine.get_probabilities()
+    probabilities = engine.get_probabilities(noisy=st.session_state.get("noisy_simulation", False))
     for basis, value in probabilities.items():
         pct = value * 100
         width = max(pct, 0.5)
@@ -1070,6 +1072,27 @@ def render_composer():
     # Visual circuit composer
     st.markdown("#### Visual Circuit")
     render_circuit_composer(st.session_state.composer_gates, st.session_state.num_qubits)
+    
+    st.markdown("#### 🗣️ Natural Language Circuit Builder")
+    with st.form("builder_form", clear_on_submit=True):
+        col1, col2 = st.columns([5, 1])
+        with col1:
+            builder_prompt = st.text_input("Ask A.C.E. to build a circuit...", placeholder="e.g., Entangle qubit 0 and 1")
+        with col2:
+            build_submitted = st.form_submit_button("Build ⚡")
+            
+        if build_submitted and builder_prompt.strip():
+            from frontend.agents.builder_agent import build_circuit_from_prompt
+            api_key = st.session_state.get("user_gemini_api_key")
+            with st.spinner("A.C.E. is building your circuit..."):
+                new_gates = build_circuit_from_prompt(builder_prompt, st.session_state.num_qubits, api_key=api_key)
+                if new_gates:
+                    st.session_state.composer_gates.extend(new_gates)
+                    st.session_state.composer_last_gate = (new_gates[-1]["gate"], new_gates[-1]["target"])
+                    st.session_state.composer_ai_feedback = "I built the circuit based on your prompt, Boss! Check out the Bloch spheres."
+                    st.rerun()
+                else:
+                    st.error("Could not build circuit. Please provide a Gemini API Key in the sidebar or check your prompt.")
 
     controls, visual = st.columns([4, 8])
     with controls:
@@ -1166,7 +1189,7 @@ def render_chat():
         # Classify and route
         intent = classify_intent(user_input)
         meta = AGENT_META.get(intent, AGENT_META["general"])
-        _, response_stream = route_and_respond(user_input, intent=intent)
+        _, response_stream = route_and_respond(user_input, intent=intent, eli5_mode=st.session_state.get("eli5_mode", False))
 
         with st.chat_message("assistant", avatar=meta["avatar"]):
             st.markdown(f"**{meta['name']}** · *{meta['description']}*")
@@ -1318,6 +1341,28 @@ def render_cognitive_core_sidebar():
     if user_key != st.session_state.get("user_gemini_api_key", ""):
         st.session_state["user_gemini_api_key"] = user_key
         st.rerun()
+        
+    st.sidebar.divider()
+    
+    st.sidebar.markdown("### 🎛️ Reality Settings")
+    
+    eli5_col, eli5_info = st.sidebar.columns([3, 1])
+    with eli5_col:
+        eli5_mode = st.toggle("🧒 ELI5 Mode", value=st.session_state.get("eli5_mode", False))
+        if eli5_mode != st.session_state.get("eli5_mode"):
+            st.session_state["eli5_mode"] = eli5_mode
+            st.rerun()
+    with eli5_info:
+        st.info("Explain Like I'm 5 (No Math!)", icon="💡")
+
+    noise_col, noise_info = st.sidebar.columns([3, 1])
+    with noise_col:
+        noisy_simulation = st.toggle("🌩️ Hardware Noise", value=st.session_state.get("noisy_simulation", False))
+        if noisy_simulation != st.session_state.get("noisy_simulation"):
+            st.session_state["noisy_simulation"] = noisy_simulation
+            st.rerun()
+    with noise_info:
+        st.warning("Simulate real-world quantum decoherence", icon="⚠️")
 
 
 # ── Main ──

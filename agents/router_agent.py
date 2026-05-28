@@ -106,23 +106,32 @@ def classify_intent(user_message: str, api_key: str = None) -> str:
     return keyword_result
 
 
-def route_and_respond(user_message: str, intent: str = None, api_key: str = None):
+def route_and_respond(user_message: str, intent: str = None, api_key: str = None, eli5_mode: bool = False):
     """Route a user message to the appropriate agent and return a stream."""
     if intent is None:
         intent = classify_intent(user_message, api_key=api_key)
 
     if intent == "explain":
-        return intent, explain_concept_chat(user_message, api_key=api_key)
+        return intent, explain_concept_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
     elif intent == "code":
-        return intent, generate_code_chat(user_message, api_key=api_key)
+        return intent, generate_code_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
     elif intent == "test":
-        return intent, generate_problem_chat(user_message, api_key=api_key)
+        return intent, generate_problem_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
     else:
-        return intent, general_chat(user_message, api_key=api_key)
+        return intent, general_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
 
 
-def explain_concept_chat(user_message: str, api_key: str = None):
-    prompt = """
+def explain_concept_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
+    if eli5_mode:
+        prompt = """
+You are A.C.E., acting as a fun and extremely simple teacher for a 5-year-old child!
+Explain the quantum concept using ONLY physical, everyday analogies (like coins, colors, games).
+- Address the user warmly.
+- NO MATH whatsoever (no angles, no pi, no vectors).
+- Use simple, playful language. Keep it engaging and under 150 words.
+"""
+    else:
+        prompt = """
 You are A.C.E., a highly advanced educational AI. 
 Explain the quantum concept the user is asking about using brilliant, real-world 
 mechanical or physical analogies. Be warm, address them as 'Boss' or 'Creator'.
@@ -132,7 +141,7 @@ Use markdown formatting for clarity. Keep it engaging and under 250 words.
     return generate_stream(prompt, user_message, api_key=api_key)
 
 
-def generate_code_chat(user_message: str, api_key: str = None):
+def generate_code_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
     prompt = """
 You are A.C.E., acting as the Qiskit Engineer.
 Generate clean, well-commented Qiskit Python code for what the user is asking.
@@ -143,11 +152,24 @@ Generate clean, well-commented Qiskit Python code for what the user is asking.
 - Address the user warmly as 'Boss' or 'Creator'.
 - Wrap code in ```python blocks.
 """
+    if eli5_mode:
+        prompt += "\n- Add extremely simple analogies in the code comments for a 5-year-old."
+        
     return generate_stream(prompt, user_message, api_key=api_key)
 
 
-def generate_problem_chat(user_message: str, api_key: str = None):
-    prompt = """
+def generate_problem_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
+    if eli5_mode:
+        prompt = """
+You are A.C.E., acting as a fun and simple teacher for a 5-year-old child!
+Create a simple, playful riddle or question related to what the user mentioned.
+- Do NOT give the answer directly.
+- Use ONLY physical analogies (like magic coins, secret doors, colors).
+- NO MATH.
+- Be extremely warm and encouraging. Keep it under 100 words.
+"""
+    else:
+        prompt = """
 You are A.C.E., acting as the Socratic Tutor.
 Create a thought-provoking conceptual challenge related to what the user mentioned.
 - Do NOT give the answer directly.
@@ -158,5 +180,15 @@ Create a thought-provoking conceptual challenge related to what the user mention
     return generate_stream(prompt, user_message, api_key=api_key)
 
 
-def general_chat(user_message: str, api_key: str = None):
-    return generate_stream(GENERAL_PROMPT, user_message, api_key=api_key)
+def general_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
+    prompt = GENERAL_PROMPT
+    if eli5_mode:
+        prompt = """
+You are A.C.E., a fun and brilliant AI companion acting as a teacher for a 5-year-old child!
+- You are knowledgeable about quantum computing but explain it using only simple, playful analogies.
+- NO MATH.
+- Be encouraging and warm.
+- Keep responses focused, clear, and under 150 words.
+- Suggest fun things they could try in the Compose tab.
+"""
+    return generate_stream(prompt, user_message, api_key=api_key)

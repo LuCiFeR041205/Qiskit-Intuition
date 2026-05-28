@@ -35,7 +35,8 @@ def route_and_respond(user_message: str, intent: str = None):
             headers = {}
             if "user_gemini_api_key" in st.session_state and st.session_state["user_gemini_api_key"]:
                 headers["X-Gemini-API-Key"] = st.session_state["user_gemini_api_key"]
-            response = requests.post(f"{BACKEND_URL}/agent/route", json={"user_message": user_message}, stream=True, headers=headers)
+            eli5 = st.session_state.get("eli5_mode", False) if hasattr(st, "session_state") else False
+            response = requests.post(f"{BACKEND_URL}/agent/route", json={"user_message": user_message, "eli5_mode": eli5}, stream=True, headers=headers)
             if response.status_code == 200:
                 def sse_parser():
                     current_event = None
@@ -56,7 +57,8 @@ def route_and_respond(user_message: str, intent: str = None):
         except Exception:
             pass
             
-    return local_route_and_respond(user_message, intent)
+    eli5 = st.session_state.get("eli5_mode", False) if hasattr(st, "session_state") else False
+    return local_route_and_respond(user_message, intent, eli5_mode=eli5)
 
 def explain_concept_chat(user_message: str):
     if is_backend_online():

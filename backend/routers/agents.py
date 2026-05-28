@@ -28,6 +28,7 @@ class CoachRequest(BaseModel):
     latest_gate: str
     qubit: int
     full_circuit_desc: str
+    eli5_mode: bool = False
 
 class EvaluateRequest(BaseModel):
     user_answer: str
@@ -35,6 +36,7 @@ class EvaluateRequest(BaseModel):
 
 class RouteRequest(BaseModel):
     user_message: str
+    eli5_mode: bool = False
 
 def stream_sse(generator):
     for chunk in generator:
@@ -52,7 +54,7 @@ async def explain(req: ExplainRequest, x_gemini_api_key: Optional[str] = Header(
 @router.post("/coach")
 async def coach(req: CoachRequest, x_gemini_api_key: Optional[str] = Header(None)):
     try:
-        generator = explain_composer_action(req.latest_gate, req.qubit, req.full_circuit_desc, api_key=x_gemini_api_key)
+        generator = explain_composer_action(req.latest_gate, req.qubit, req.full_circuit_desc, api_key=x_gemini_api_key, eli5_mode=req.eli5_mode)
         return StreamingResponse(stream_sse(generator), media_type="text/event-stream")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -92,7 +94,7 @@ async def route_agent(req: RouteRequest, x_gemini_api_key: Optional[str] = Heade
             yield f"event: intent\ndata: {json.dumps({'intent': intent, 'name': meta['name'], 'avatar': meta['avatar'], 'description': meta['description']})}\n\n"
             
             # Then stream chunks
-            _, response_stream = route_and_respond(req.user_message, intent=intent, api_key=x_gemini_api_key)
+            _, response_stream = route_and_respond(req.user_message, intent=intent, api_key=x_gemini_api_key, eli5_mode=req.eli5_mode)
             for chunk in response_stream:
                 if chunk:
                     yield f"event: chunk\ndata: {chunk}\n\n"

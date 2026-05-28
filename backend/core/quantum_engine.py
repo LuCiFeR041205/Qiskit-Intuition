@@ -83,8 +83,39 @@ class QuantumEngine:
     def get_statevector(self):
         return Statevector.from_instruction(self.build_circuit())
 
-    def get_probabilities(self):
-        probabilities = self.get_statevector().probabilities_dict()
+    def get_probabilities(self, noisy: bool = False):
+        qc = self.build_circuit()
+        if not noisy:
+            sv = Statevector.from_instruction(qc)
+            probabilities = sv.probabilities_dict()
+        else:
+            try:
+                from qiskit_aer import AerSimulator
+                from qiskit_aer.noise import NoiseModel, depolarizing_error
+                
+                qc_measure = qc.copy()
+                qc_measure.measure_all()
+                
+                noise_model = NoiseModel()
+                error_1 = depolarizing_error(0.05, 1)
+                error_2 = depolarizing_error(0.05, 2)
+                
+                noise_model.add_all_qubit_quantum_error(error_1, ['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg', 'rx', 'ry', 'rz'])
+                noise_model.add_all_qubit_quantum_error(error_2, ['cx'])
+                
+                sim = AerSimulator(noise_model=noise_model)
+                # Ensure transpilation uses basic gates to match the noise model
+                from qiskit import transpile
+                t_qc = transpile(qc_measure, basis_gates=['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg', 'rx', 'ry', 'rz', 'cx', 'id'])
+                result = sim.run(t_qc, shots=4000).result()
+                counts = result.get_counts(0)
+                
+                total_shots = sum(counts.values())
+                probabilities = {state: count/total_shots for state, count in counts.items()}
+            except ImportError:
+                sv = Statevector.from_instruction(qc)
+                probabilities = sv.probabilities_dict()
+
         clean_probabilities = {
             str(basis_state): float(probability)
             for basis_state, probability in probabilities.items()
