@@ -22,7 +22,8 @@ from frontend.components.bloch_sphere import render_bloch_sphere
 from frontend.components.quantum_field import render_quantum_field
 from frontend.components.circuit_composer import render_circuit_composer
 from frontend.components.code_editor import render_sandbox_header, PRESET_EXPERIMENTS
-
+from frontend.components.local_copilot import render_local_copilot
+from backend.core.quest_engine import get_quests, render_quest_tab
 BACKEND_URL = "http://localhost:8000"
 
 def is_backend_online():
@@ -581,23 +582,7 @@ def render_composer():
         render_circuit_composer(st.session_state.composer_gates, st.session_state.num_qubits)
         
         st.markdown("#### 🗣️ Natural Language Circuit Builder")
-        with st.form("builder_form", clear_on_submit=True):
-            col1, col2 = st.columns([5, 1])
-            with col1:
-                builder_prompt = st.text_input("Ask A.C.E. to build a circuit...", placeholder="e.g., Entangle qubit 0 and 1")
-            with col2:
-                build_submitted = st.form_submit_button("Build ⚡")
-                
-            if build_submitted and builder_prompt.strip():
-                from frontend.agents.builder_agent import build_circuit_from_prompt
-                api_key = st.session_state.get("user_gemini_api_key")
-                with st.spinner("A.C.E. is building your circuit..."):
-                    new_gates = build_circuit_from_prompt(builder_prompt, st.session_state.num_qubits, api_key=api_key)
-                    if new_gates:
-                        st.session_state.composer_gates.extend(new_gates)
-                        st.session_state.composer_last_gate = (new_gates[-1]["gate"], new_gates[-1]["target"])
-                        st.session_state.composer_ai_feedback = "I built the circuit based on your prompt, Explorer! Check out the Bloch spheres."
-                        st.rerun()
+        st.info("A.C.E. Builder is running locally. Go to the Copilot tab to chat!")
                     else:
                         st.error("Could not build circuit. Please provide a Gemini API Key in the sidebar or check your prompt.")
 
@@ -635,81 +620,9 @@ def render_composer():
 # ── Chat Tab ──
 
 def render_chat():
-    st.markdown("## A.C.E. Chat Console")
-    st.caption("Ask anything about quantum computing. Your message is automatically routed to the right specialist agent.")
-
-    # Check if API key is provided
-    api_key_configured = st.session_state.get("user_gemini_api_key", "").strip()
-    
-    # Check if backend has a fallback key
-    is_online = is_backend_online()
-    backend_has_key = False
-    if is_online:
-        try:
-            r = requests.get(f"{BACKEND_URL}/health", timeout=0.5)
-            if r.status_code == 200:
-                backend_has_key = r.json().get("api_key_configured", False)
-        except Exception:
-            pass
-
-    has_active_key = bool(api_key_configured or backend_has_key)
-
-    # Display chat history
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"], avatar=msg.get("avatar", None)):
-            if msg.get("agent_name"):
-                st.markdown(f"**{msg['agent_name']}**")
-            st.markdown(msg["content"])
-
-    if not has_active_key:
-        st.markdown(
-            """
-<div class="lab-hero" role="region" aria-label="Tutorial Lesson" tabindex="0" style="border: 1px solid rgba(255, 111, 145, 0.35); background: rgba(10, 26, 25, 0.85); box-shadow: 0 8px 32px rgba(255, 111, 145, 0.05); padding: 30px; text-align: center; border-radius: 12px; margin-top: 20px;">
-    <span style="font-size: 3rem; filter: drop-shadow(0 0 10px rgba(255, 111, 145, 0.5));">🔒</span>
-    <h3 style="color: #ff6f91 !important; margin-top: 15px; font-family: 'Space Grotesk', sans-serif;">A.C.E. Cognitive Mainframe Offline</h3>
-    <p style="color: #8db8b0; font-size: 1.05rem; line-height: 1.6; max-width: 500px; margin: 10px auto;">
-        Explorer, the live cognitive processor is offline. While all curriculum lessons, interactive Bloch spheres, and circuit simulations are fully available <strong>100% offline &amp; API-free</strong>, dynamic doubt-clearing chat requires a Google Gemini API Key.
-    </p>
-    <div style="margin-top: 20px;">
-        <span style="color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; border: 1px dashed rgba(101, 244, 212, 0.3); padding: 8px 16px; border-radius: 6px; background: rgba(101, 244, 212, 0.05);">
-            ⚡ Configure your Gemini API Key in the sidebar to activate J.A.R.V.I.S. doubt-clearing
-        </span>
-    </div>
-</div>
-            """,
-            unsafe_allow_html=True
-        )
-        st.chat_input("Chat locked. Please provide a Gemini API Key in the sidebar...", disabled=True)
-        return
-
-    # Chat input
-    user_input = st.chat_input("Ask about quantum computing, request code, or say 'test me'...")
-
-    if user_input:
-        # Add user message
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": user_input,
-        })
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        # Classify and route
-        intent = classify_intent(user_input)
-        meta = AGENT_META.get(intent, AGENT_META["general"])
-        _, response_stream = route_and_respond(user_input, intent=intent, eli5_mode=st.session_state.get("eli5_mode", False))
-
-        with st.chat_message("assistant", avatar=meta["avatar"]):
-            st.markdown(f"**{meta['name']}** · *{meta['description']}*")
-            response_text = st.write_stream(response_stream)
-
-        # Save to history
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "avatar": meta["avatar"],
-            "agent_name": meta["name"],
-            "content": response_text,
-        })
+    st.markdown("## A.C.E. Copilot Console")
+    st.caption("Ask anything about quantum computing. Your copilot runs 100% locally in your browser.")
+    render_local_copilot()
 
 
 # ── Sandbox Tab ──
@@ -801,29 +714,15 @@ Keep the explanation clear, educational, and under 300 words.
 
 
 def render_cognitive_core_sidebar():
-    # Check if a key is provided in session state
-    api_key_configured = st.session_state.get("user_gemini_api_key", "").strip()
+    has_active_key = True
     
-    # Check if backend has a fallback key
-    is_online = is_backend_online()
-    backend_has_key = False
-    if is_online:
-        try:
-            r = requests.get(f"{BACKEND_URL}/health", timeout=0.5)
-            if r.status_code == 200:
-                backend_has_key = r.json().get("api_key_configured", False)
-        except Exception:
-            pass
-
-    has_active_key = bool(api_key_configured or backend_has_key)
-    
-    status_color = "#65f4d4" if has_active_key else "#ff6f91"
-    status_text = "ACTIVE LINK" if has_active_key else "KEY REQUIRED"
+    status_color = "#65f4d4"
+    status_text = "OFFLINE COGNITION ACTIVE"
     pulse_style = f"background-color: {status_color}; box-shadow: 0 0 10px {status_color};"
 
     st.sidebar.markdown(
         f"""
-        <div style="border: 1px solid rgba({ '101, 244, 212' if has_active_key else '255, 111, 145' }, 0.2); background: rgba(10, 26, 25, 0.85); box-shadow: 0 8px 32px rgba({ '101, 244, 212' if has_active_key else '255, 111, 145' }, 0.05); padding: 16px; border-radius: 10px; margin-bottom: 20px;">
+        <div style="border: 1px solid rgba(101, 244, 212, 0.2); background: rgba(10, 26, 25, 0.85); box-shadow: 0 8px 32px rgba(101, 244, 212, 0.05); padding: 16px; border-radius: 10px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.9rem; letter-spacing: 0.05em; color: {status_color};">COGNITIVE INTERFACE</span>
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -832,23 +731,12 @@ def render_cognitive_core_sidebar():
                 </div>
             </div>
             <p style="font-size: 0.8rem; color: #8fa09e; line-height: 1.4; margin: 0 0 12px 0;">
-                Offline simulation &amp; curriculum are active. Live Socratic doubt-clearing requires a Google Gemini Key.
+                All AI agents are running 100% locally in your browser. No API keys required. Privacy maximized.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
-    
-    user_key = st.sidebar.text_input(
-        "Gemini API Key",
-        value=st.session_state.get("user_gemini_api_key", ""),
-        type="password",
-        placeholder="AIzaSy...",
-        help="Paste your Google Gemini API Key here to unlock the live AI chat assistant."
-    )
-    if user_key != st.session_state.get("user_gemini_api_key", ""):
-        st.session_state["user_gemini_api_key"] = user_key
-        st.rerun()
         
     st.sidebar.divider()
     
@@ -883,13 +771,16 @@ render_cognitive_core_sidebar()
 
 render_quantum_field()
 
-tab_learn, tab_compose, tab_chat, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "💬 A.C.E. Chat", "🧪 Sandbox"])
+tab_learn, tab_compose, tab_quests, tab_chat, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🎯 Quests", "💬 A.C.E. Chat", "🧪 Sandbox"])
 
 with tab_learn:
     render_curriculum()
 
 with tab_compose:
     render_composer()
+
+with tab_quests:
+    render_quest_tab()
 
 with tab_chat:
     render_chat()
