@@ -283,3 +283,7 @@ INFO:     127.0.0.1:61631 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:61633 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:61635 - "GET /health HTTP/1.1" 200 OK
 INFO:     127.0.0.1:61637 - "GET /health HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [48018]
