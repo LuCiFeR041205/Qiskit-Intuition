@@ -33,4 +33,4 @@ Maintain the high-fidelity **Stark HUD** theme in any CSS modifications:
 ---
 
 ## 🛡️ Code of Conduct
-We support a warm, welcoming, and encouraging environment. Treat all collaborators with respect, just as A.C.E. treats the Boss!
+We support a warm, welcoming, and encouraging environment. Treat all collaborators with respect, just as A.C.E. treats the Explorer!

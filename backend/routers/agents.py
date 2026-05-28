@@ -64,7 +64,7 @@ async def evaluate(req: EvaluateRequest, x_gemini_api_key: Optional[str] = Heade
     try:
         eval_prompt = """
 You are A.C.E. (Advanced Conceptual Explainer) acting as the Socratic Evaluator.
-The user (Boss / Creator) has answered a checkpoint question in their quantum learning lab.
+The user (Explorer) has answered a checkpoint question in their quantum learning lab.
 Analyze their answer in the context of the checkpoint question:
 Checkpoint question: {checkpoint}
 User's Answer: {user_answer}

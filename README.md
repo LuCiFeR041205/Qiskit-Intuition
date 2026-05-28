@@ -1,8 +1,14 @@
-# Qiskit Intuition Lab
+# Qiskit Intuition Lab ⚛️
 
-An immersive, physics-first quantum learning workspace built with Streamlit, Qiskit, and Three.js.
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+[![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A51.0-blue)](https://qiskit.org/)
 
-The goal is to make Qiskit feel learnable from first principles: learners can build circuits visually, watch qubits move in 3D, inspect measurement probabilities, export the equivalent Qiskit code, and progress from basic gates to advanced hardware workflows.
+**Note: This is an entirely new, experimental project in its early stages.** 
+We know it needs massive improvement, and we highly encourage anyone interested in quantum computing, frontend development, or AI agents to jump in and contribute!
+
+This project is an effort to make quantum education deeply **intuitive**. It is an immersive, physics-first quantum learning workspace built with Streamlit, Qiskit, and a 3D interface.
+
+Our goal is to make Qiskit feel learnable from first principles: learners can build circuits visually, watch qubits move in 3D, inspect measurement probabilities, and progress from basic gates to advanced hardware workflows with the help of sophisticated AI tutors.
 
 ## Features
 

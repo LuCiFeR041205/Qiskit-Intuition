@@ -97,17 +97,19 @@ class QuantumEngine:
         self.gates = []
         self._last_simulation = None
 
-    def _fetch_simulation(self):
-        if self._last_simulation is not None:
+    def _fetch_simulation(self, noisy: bool = False):
+        if self._last_simulation is not None and self._last_simulation.get("_was_noisy") == noisy:
             return self._last_simulation
         if is_backend_online():
             try:
                 r = requests.post(f"{BACKEND_URL}/simulate", json={
                     "gates": self.gates,
-                    "num_qubits": self.num_qubits
+                    "num_qubits": self.num_qubits,
+                    "noisy": noisy
                 }, timeout=5.0)
                 if r.status_code == 200:
                     self._last_simulation = r.json()
+                    self._last_simulation["_was_noisy"] = noisy
                     return self._last_simulation
             except Exception:
                 pass
@@ -117,24 +119,25 @@ class QuantumEngine:
         local.gates = self.gates
         sv = local.get_statevector()
         bloch_angles = local.run_simulation()
-        probabilities = local.get_probabilities()
+        probabilities = local.get_probabilities(noisy=noisy)
         self._last_simulation = {
             "statevector": [str(c) for c in sv.data],
             "bloch_angles": bloch_angles,
             "probabilities": probabilities,
-            "circuit_figure": None
+            "circuit_figure": None,
+            "_was_noisy": noisy
         }
         return self._last_simulation
 
-    def run_simulation(self):
-        sim = self._fetch_simulation()
+    def run_simulation(self, noisy: bool = False):
+        sim = self._fetch_simulation(noisy=noisy)
         angles = {}
         for k, v in sim["bloch_angles"].items():
             angles[int(k)] = v
         return angles
 
-    def get_probabilities(self):
-        sim = self._fetch_simulation()
+    def get_probabilities(self, noisy: bool = False):
+        sim = self._fetch_simulation(noisy=noisy)
         return sim["probabilities"]
 
     def get_qiskit_code(self):
@@ -153,8 +156,8 @@ class QuantumEngine:
         local.gates = self.gates
         return local.get_qiskit_code()
 
-    def get_circuit_figure(self):
-        sim = self._fetch_simulation()
+    def get_circuit_figure(self, noisy: bool = False):
+        sim = self._fetch_simulation(noisy=noisy)
         if sim.get("circuit_figure"):
             img_bytes = base64.b64decode(sim["circuit_figure"])
             return Image.open(BytesIO(img_bytes))
@@ -236,7 +239,7 @@ CURRICULUM = {
             "practice": "Create a QuantumCircuit, add one gate, print it, and draw it.",
             "lesson_text": "Before we manipulate quantum mechanics, we must understand the language of our control system: Python.<br><br>A quantum circuit is essentially a **digital recipe**. Each line of code adds a new instruction (like a physical gate) to our qubits, from left to right. We use Qiskit's `QuantumCircuit` class to initialize our qubits (which default to the standard state |0⟩).<br><br>To write a circuit, we initialize the object, apply operations, and print it:<br><code>from qiskit import QuantumCircuit<br>qc = QuantumCircuit(1) # Create 1 qubit circuit<br>qc.h(0)                # Apply a Hadamard gate to qubit 0<br>print(qc)              # Print a text-based circuit diagram</code><br><br>Just like a baking recipe, the circuit doesn't do anything until we put it in the oven (simulator or hardware) to run it! This tab helps you see exactly how composer actions translate to real Python lines.",
             "tutorial_code": "from qiskit import QuantumCircuit\n\n# Initialize a circuit with 1 qubit and 1 classical bit\nqc = QuantumCircuit(1, 1)\n\n# Apply a Hadamard gate to qubit 0\nqc.h(0)\n\n# Print a text representation of the circuit\nprint('--- Quantum Circuit recipe ---')\nprint(qc)\n",
-            "tutor_challenge": "Boss, what happens if you run `qc.h(0)` twice in a row? Try pasting it in the Sandbox, click Run, and observe the state vector. Does it return back to |0⟩? Why?"
+            "tutor_challenge": "Explorer, what happens if you run `qc.h(0)` twice in a row? Try pasting it in the Sandbox, click Run, and observe the state vector. Does it return back to |0⟩? Why?"
         },
         "Qiskit Objects": {
             "big_idea": "QuantumCircuit, Statevector, AerSimulator, transpiler passes, and backends are the core objects learners reuse everywhere.",
@@ -256,7 +259,7 @@ CURRICULUM = {
             "practice": "Prepare |0⟩, |1⟩, |+⟩, and |−⟩ in Qiskit and compare their Bloch vectors.",
             "lesson_text": "A classical bit is simple: it is either a <code>0</code> or a <code>1</code>. Think of it as a standard light switch that can only be fully UP or fully DOWN.<br><br>A <strong>quantum bit (qubit)</strong> is represented visually as a three-dimensional sphere (the Bloch Sphere):<br><ul><li>The <strong>North Pole</strong> represents the state |0⟩ (100% chance of measuring 0).</li><li>The <strong>South Pole</strong> represents the state |1⟩ (100% chance of measuring 1).</li><li>The <strong>Equator</strong> and everything in between represent combinations (superpositions) of both!</li></ul><br>By applying rotation gates, we can point our qubit's state vector <em>anywhere</em> on the surface of this sphere. It is a continuous, physical two-level state! Try dragging the sliders below to see the state vector move across the sphere.",
             "tutorial_code": "from qiskit import QuantumCircuit\nfrom qiskit.quantum_info import Statevector\n\nqc = QuantumCircuit(1)\n# Flip the qubit to the state |1⟩ using a Pauli-X gate\nqc.x(0)\n\nsv = Statevector.from_instruction(qc)\nprint('Statevector at South Pole (|1⟩):')\nprint(sv.data)\n",
-            "tutor_challenge": "Boss, if you start at the North Pole (|0⟩) and apply a Pauli-Y gate instead of a Pauli-X, where does the state vector land on the Bloch sphere? How does its phase angle change?"
+            "tutor_challenge": "Explorer, if you start at the North Pole (|0⟩) and apply a Pauli-Y gate instead of a Pauli-X, where does the state vector land on the Bloch sphere? How does its phase angle change?"
         },
         "Superposition": {
             "big_idea": "Superposition means the vector is not at a pole; measurement probabilities come from its projection.",
@@ -381,7 +384,7 @@ CURRICULUM = {
             "practice": "Run a Bell circuit through a sampler-style workflow.",
             "lesson_text": "In earlier versions of Qiskit, execution returned raw measurement counts. Modern Qiskit 1.0+ has moved to a more physics-first interface called **Primitives**:<br><br><ul><li><strong>Sampler</strong>: Returns the quasi-probability distribution of the basis states. Use this when you want to get counts or sample outcomes (e.g. key search or cryptography).</li><li><strong>Estimator</strong>: Computes the expectation value of physical operators (observables). Use this when you want to measure physical quantities like energy, magnetization, or expectation values (e.g., in VQE or chemistry).</li></ul><br>Primitives simplify writing hardware-agnostic algorithms by handling error mitigation and hardware layouts behind the scenes!",
             "tutorial_code": "print('Modern Qiskit workflows define: Primitives. Sampler vs Estimator.')\nprint('Example import: from qiskit.primitives import StatevectorSampler, StatevectorEstimator')\n",
-            "tutor_challenge": "Boss, when do you want measurement counts (Sampler) and when do you want expectational physical values (Estimator)? Detail a scenario for each!"
+            "tutor_challenge": "Explorer, when do you want measurement counts (Sampler) and when do you want expectational physical values (Estimator)? Detail a scenario for each!"
         },
         "Error Mitigation": {
             "big_idea": "Error mitigation estimates better answers from noisy data without fully correcting the quantum state.",
@@ -397,7 +400,7 @@ CURRICULUM = {
             "composer": "Treat the composer as the circuit design surface, then export and prepare it for a backend.",
             "checkpoint": "What constraints does a real backend impose that the ideal composer hides?",
             "practice": "Prepare a backend-ready notebook using Qiskit Runtime patterns.",
-            "lesson_text": "You have reached the final frontier! You are ready to run your circuits on real quantum computers in the cloud.<br><br>Running on real IBM Quantum superconducting hardware requires these exact steps:<br><ol><li><strong>Authenticate</strong>: Initialize your account using your IBM Quantum API token.</li><li><strong>Select Backend</strong>: Query the IBM service to find a device with the shortest queue and lowest error rate.</li><li><strong>Transpile</strong>: Map your custom circuit specifically to that device's physical coupling map and basis gates.</li><li><strong>Runtime Job</strong>: Submit the transpiled circuit to the IBM execution queue using Qiskit Runtime Sampler/Estimator primitives, and await your results!</li></ol><br>Congratulations on completing the pathway, Boss! You have built a solid foundation in quantum computing!",
+            "lesson_text": "You have reached the final frontier! You are ready to run your circuits on real quantum computers in the cloud.<br><br>Running on real IBM Quantum superconducting hardware requires these exact steps:<br><ol><li><strong>Authenticate</strong>: Initialize your account using your IBM Quantum API token.</li><li><strong>Select Backend</strong>: Query the IBM service to find a device with the shortest queue and lowest error rate.</li><li><strong>Transpile</strong>: Map your custom circuit specifically to that device's physical coupling map and basis gates.</li><li><strong>Runtime Job</strong>: Submit the transpiled circuit to the IBM execution queue using Qiskit Runtime Sampler/Estimator primitives, and await your results!</li></ol><br>Congratulations on completing the pathway, Explorer! You have built a solid foundation in quantum computing!",
             "tutorial_code": "print('IBM Quantum hardware authentication:')\nprint('from qiskit_ibm_runtime import QiskitRuntimeService')\nprint('# service = QiskitRuntimeService(channel=\"ibm_quantum\", token=\"YOUR_TOKEN\")')\n",
             "tutor_challenge": "What constraints does a real physical hardware chip impose that the ideal simulation environment completely hides?"
         },
@@ -1051,6 +1054,41 @@ def render_curriculum():
             st.markdown(st.session_state[f"feynman_{module}"])
             st.markdown(st.session_state[f"code_{module}"])
             st.markdown(st.session_state[f"tutor_{module}"])
+            
+        st.markdown("### 💻 Interactive Code Challenge")
+        st.caption("Try writing the Qiskit code to solve the challenge above!")
+        
+        challenge_code_key = f"challenge_code_{module}"
+        if challenge_code_key not in st.session_state:
+            st.session_state[challenge_code_key] = lesson.get('tutorial_code', '# Write your Qiskit code here...\n')
+            
+        user_code = st.text_area("Challenge Editor", value=st.session_state[challenge_code_key], height=250, label_visibility="collapsed")
+        st.session_state[challenge_code_key] = user_code
+        
+        if st.button("▶ Run Challenge Code", type="primary"):
+            with st.spinner("Running your code..."):
+                result = execute_notebook_code(user_code)
+                
+                if result["success"]:
+                    st.success("Execution completed successfully!")
+                else:
+                    st.error("Execution failed.")
+                    if result["error"]:
+                        st.code(result["error"], language="python")
+                    elif result["stderr"]:
+                        st.code(result["stderr"], language="python")
+                    
+                if result["stdout"]:
+                    st.markdown("#### Output")
+                    st.code(result["stdout"])
+                
+                if result["figures"]:
+                    st.markdown("#### Figures")
+                    for fig in result["figures"]:
+                        if isinstance(fig, plt.Figure):
+                            st.pyplot(fig)
+                        else:
+                            st.image(fig)
 
 
 # ── Compose Tab ──
@@ -1066,40 +1104,44 @@ def render_composer():
         st.rerun()
 
     engine = build_engine()
-    angles = engine.run_simulation()
+    noisy_sim = st.session_state.get("noisy_simulation", False)
+    angles = engine.run_simulation(noisy=noisy_sim)
     render_metric_strip(engine)
 
-    # Visual circuit composer
-    st.markdown("#### Visual Circuit")
-    render_circuit_composer(st.session_state.composer_gates, st.session_state.num_qubits)
+    tab_build, tab_analyze = st.tabs(["🛠️ Builder", "🔬 Analysis"])
     
-    st.markdown("#### 🗣️ Natural Language Circuit Builder")
-    with st.form("builder_form", clear_on_submit=True):
-        col1, col2 = st.columns([5, 1])
-        with col1:
-            builder_prompt = st.text_input("Ask A.C.E. to build a circuit...", placeholder="e.g., Entangle qubit 0 and 1")
-        with col2:
-            build_submitted = st.form_submit_button("Build ⚡")
-            
-        if build_submitted and builder_prompt.strip():
-            from frontend.agents.builder_agent import build_circuit_from_prompt
-            api_key = st.session_state.get("user_gemini_api_key")
-            with st.spinner("A.C.E. is building your circuit..."):
-                new_gates = build_circuit_from_prompt(builder_prompt, st.session_state.num_qubits, api_key=api_key)
-                if new_gates:
-                    st.session_state.composer_gates.extend(new_gates)
-                    st.session_state.composer_last_gate = (new_gates[-1]["gate"], new_gates[-1]["target"])
-                    st.session_state.composer_ai_feedback = "I built the circuit based on your prompt, Boss! Check out the Bloch spheres."
-                    st.rerun()
-                else:
-                    st.error("Could not build circuit. Please provide a Gemini API Key in the sidebar or check your prompt.")
+    with tab_build:
+        st.markdown("#### Visual Circuit")
+        render_circuit_composer(st.session_state.composer_gates, st.session_state.num_qubits)
+        
+        st.markdown("#### 🗣️ Natural Language Circuit Builder")
+        with st.form("builder_form", clear_on_submit=True):
+            col1, col2 = st.columns([5, 1])
+            with col1:
+                builder_prompt = st.text_input("Ask A.C.E. to build a circuit...", placeholder="e.g., Entangle qubit 0 and 1")
+            with col2:
+                build_submitted = st.form_submit_button("Build ⚡")
+                
+            if build_submitted and builder_prompt.strip():
+                from frontend.agents.builder_agent import build_circuit_from_prompt
+                api_key = st.session_state.get("user_gemini_api_key")
+                with st.spinner("A.C.E. is building your circuit..."):
+                    new_gates = build_circuit_from_prompt(builder_prompt, st.session_state.num_qubits, api_key=api_key)
+                    if new_gates:
+                        st.session_state.composer_gates.extend(new_gates)
+                        st.session_state.composer_last_gate = (new_gates[-1]["gate"], new_gates[-1]["target"])
+                        st.session_state.composer_ai_feedback = "I built the circuit based on your prompt, Explorer! Check out the Bloch spheres."
+                        st.rerun()
+                    else:
+                        st.error("Could not build circuit. Please provide a Gemini API Key in the sidebar or check your prompt.")
 
-    controls, visual = st.columns([4, 8])
-    with controls:
-        render_gate_palette()
-        render_composer_feedback()
+        controls, feedback = st.columns([4, 8])
+        with controls:
+            render_gate_palette()
+        with feedback:
+            render_composer_feedback()
 
-    with visual:
+    with tab_analyze:
         st.markdown("#### 3D State Laboratory")
         bloch_cols = st.columns(min(st.session_state.num_qubits, 4))
         for qubit in range(st.session_state.num_qubits):
@@ -1114,7 +1156,7 @@ def render_composer():
             render_state_readout(angles)
 
         st.markdown("#### Circuit Diagram")
-        fig = engine.get_circuit_figure()
+        fig = engine.get_circuit_figure(noisy=noisy_sim)
         if isinstance(fig, plt.Figure):
             st.pyplot(fig, clear_figure=True)
         else:
@@ -1160,7 +1202,7 @@ def render_chat():
     <span style="font-size: 3rem; filter: drop-shadow(0 0 10px rgba(255, 111, 145, 0.5));">🔒</span>
     <h3 style="color: #ff6f91 !important; margin-top: 15px; font-family: 'Space Grotesk', sans-serif;">A.C.E. Cognitive Mainframe Offline</h3>
     <p style="color: #8db8b0; font-size: 1.05rem; line-height: 1.6; max-width: 500px; margin: 10px auto;">
-        Boss, the live cognitive processor is offline. While all curriculum lessons, interactive Bloch spheres, and circuit simulations are fully available <strong>100% offline &amp; API-free</strong>, dynamic doubt-clearing chat requires a Google Gemini API Key.
+        Explorer, the live cognitive processor is offline. While all curriculum lessons, interactive Bloch spheres, and circuit simulations are fully available <strong>100% offline &amp; API-free</strong>, dynamic doubt-clearing chat requires a Google Gemini API Key.
     </p>
     <div style="margin-top: 20px;">
         <span style="color: var(--cyan); font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; border: 1px dashed rgba(101, 244, 212, 0.3); padding: 8px 16px; border-radius: 6px; background: rgba(101, 244, 212, 0.05);">
@@ -1286,7 +1328,7 @@ def render_sandbox():
             explain_prompt = """
 You are A.C.E., a warm and brilliant code tutor. The user has written Qiskit code.
 Explain what each significant line does in plain English, referencing the quantum physics involved.
-Be encouraging and address the user as 'Boss' or 'Creator'. Use markdown formatting.
+Be encouraging and address the user as 'Explorer'. Use markdown formatting.
 Keep the explanation clear, educational, and under 300 words.
 """
             response = st.write_stream(generate_stream(explain_prompt, f"Explain this code:\n\n```python\n{notebook_code}\n```"))

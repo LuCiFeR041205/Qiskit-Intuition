@@ -19,6 +19,7 @@ class GateModel(BaseModel):
 class SimulateRequest(BaseModel):
     gates: List[GateModel]
     num_qubits: int
+    noisy: bool = False
 
 def fig_to_base64(fig):
     try:
@@ -47,7 +48,7 @@ async def simulate(req: SimulateRequest):
         
         sv = engine.get_statevector()
         bloch_angles = engine.run_simulation()
-        probabilities = engine.get_probabilities()
+        probabilities = engine.get_probabilities(noisy=req.noisy)
         
         # Capture circuit figure
         fig = engine.get_circuit_figure()

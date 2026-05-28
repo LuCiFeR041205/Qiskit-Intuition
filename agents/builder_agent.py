@@ -1,6 +1,7 @@
 import os
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 BUILDER_PROMPT = """
 You are A.C.E., an expert Quantum Circuit Architect.
@@ -28,20 +29,20 @@ ONLY return valid JSON matching this schema. No markdown wrapping.
 
 def build_circuit_from_prompt(user_prompt: str, num_qubits: int, api_key: str = None) -> list:
     """Takes a natural language prompt and returns a list of gate dicts."""
-    key = api_key or os.environ.get("GEMINI_API_KEY")
-    if not key:
-        return []
-
-    genai.configure(api_key=key)
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    
-    full_prompt = f"{BUILDER_PROMPT}\n\nThe circuit has {num_qubits} qubits (indices 0 to {num_qubits - 1}).\nUser Request: {user_prompt}"
-    
     try:
-        response = model.generate_content(
-            full_prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json"
+        if api_key:
+            client = genai.Client(api_key=api_key)
+        else:
+            client = genai.Client()
+        
+        full_prompt = f"{BUILDER_PROMPT}\n\nThe circuit has {num_qubits} qubits (indices 0 to {num_qubits - 1}).\nUser Request: {user_prompt}"
+        
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=full_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1
             )
         )
         return json.loads(response.text)
