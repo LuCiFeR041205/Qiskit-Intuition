@@ -259,16 +259,18 @@ def inject_theme():
     .stCodeBlock div,
     .stCodeBlock pre,
     .stCodeBlock code,
+    [data-testid="stCode"],
+    [data-testid="stCode"] *,
     [data-testid="stCodeBlock"],
+    [data-testid="stCodeBlock"] *,
     [data-testid="stCodeBlock"] div,
     [data-testid="stCodeBlock"] pre,
     [data-testid="stCodeBlock"] code {
-        background: 
-        linear-gradient(145deg, rgba(18, 39, 37, 0.86), rgba(17, 21, 34, 0.78)) !important;
+        background: var(--panel) !important;
     }
 
     .stTextArea textarea {
-        background: var(--panel) !important;
+        background: #000000 !important;
         color: var(--text) !important;
         font-size: 13px !important;
         line-height: 1.6 !important;
