@@ -25,17 +25,37 @@ QUESTS = [
     }
 ]
 
+def _as_statevector_array(state):
+    if state is None:
+        return None
+    if isinstance(state, dict):
+        state = state.get("statevector")
+    if hasattr(state, "data"):
+        state = state.data
+
+    try:
+        vector = np.asarray(state, dtype=complex)
+    except (TypeError, ValueError):
+        return None
+
+    if vector.ndim != 1 or vector.size == 0:
+        return None
+
+    norm = np.linalg.norm(vector)
+    if norm == 0:
+        return None
+    return vector / norm
+
+
 def calculate_fidelity(state1, state2):
     """
     Calculate the quantum fidelity between two state vectors.
     F = |<psi|phi>|^2
     """
-    if state1 is None or state2 is None:
+    s1 = _as_statevector_array(state1)
+    s2 = _as_statevector_array(state2)
+    if s1 is None or s2 is None:
         return 0.0
-    
-    # Ensure they are numpy arrays
-    s1 = np.array(state1, dtype=complex)
-    s2 = np.array(state2, dtype=complex)
     
     # Pad if necessary (though they should be the same size if num_qubits match)
     if len(s1) != len(s2):

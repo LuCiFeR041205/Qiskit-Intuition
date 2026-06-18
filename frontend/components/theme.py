@@ -189,6 +189,45 @@ def inject_theme():
         transform: scale(1.02);
     }
 
+    .stButton > button:disabled,
+    .stButton > button:disabled:hover {
+        background: rgba(8, 14, 20, 0.78) !important;
+        color: rgba(255, 255, 255, 0.48) !important;
+        border-color: rgba(111, 225, 205, 0.18) !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+
+    /* ── Streamlit/BaseWeb inputs ── */
+    [data-baseweb="select"] > div,
+    [data-baseweb="select"] input,
+    [data-baseweb="select"] [role="combobox"] {
+        background: #080e14 !important;
+    }
+
+    [data-baseweb="select"] > div {
+        border-color: var(--line) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    }
+
+    [data-baseweb="popover"],
+    [data-baseweb="popover"] > div,
+    [data-baseweb="menu"],
+    [role="listbox"] {
+        background: #080e14 !important;
+        border-color: var(--line) !important;
+    }
+
+    [role="option"],
+    [data-baseweb="menu"] li {
+        background: #080e14 !important;
+    }
+
+    [role="option"]:hover,
+    [data-baseweb="menu"] li:hover {
+        background: rgba(101, 244, 212, 0.16) !important;
+    }
+
     /* ── Tabs ── */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
@@ -216,9 +255,21 @@ def inject_theme():
         font-family: 'JetBrains Mono', monospace !important;
     }
 
+    .stCodeBlock,
+    .stCodeBlock div,
+    .stCodeBlock pre,
+    .stCodeBlock code,
+    [data-testid="stCodeBlock"],
+    [data-testid="stCodeBlock"] div,
+    [data-testid="stCodeBlock"] pre,
+    [data-testid="stCodeBlock"] code {
+        background: 
+        linear-gradient(145deg, rgba(18, 39, 37, 0.86), rgba(17, 21, 34, 0.78)) !important;
+    }
+
     .stTextArea textarea {
-        background: #080e14 !important;
-        color: #ffffff !important;
+        background: var(--panel) !important;
+        color: var(--text) !important;
         font-size: 13px !important;
         line-height: 1.6 !important;
     }
