@@ -737,7 +737,8 @@ def render_cognitive_core_sidebar():
         
     st.sidebar.divider()
     
-    st.sidebar.markdown("### 🎛️ Reality Settings")
+    #THIS MESSES UP THE SIDEBAR, REMOVED FOR NOW, KEPT THE CODE JUST IN CASE 
+    '''st.sidebar.markdown("### 🎛️ Reality Settings")
     
     eli5_col, eli5_info = st.sidebar.columns([3, 1])
     with eli5_col:
@@ -746,7 +747,7 @@ def render_cognitive_core_sidebar():
             st.session_state["eli5_mode"] = eli5_mode
             st.rerun()
     with eli5_info:
-        st.info("Explain Like I'm 5 (No Math!)", icon="💡")
+        st.info("Explain Like I'm 5 (No Math!)", icon="💡")''' 
 
     noise_col, noise_info = st.sidebar.columns([3, 1])
     with noise_col:

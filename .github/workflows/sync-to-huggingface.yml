@@ -1,0 +1,22 @@
+name: Sync to Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: huggingface/hub-sync@v0.2.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: j76dvyt4q5-cyber/Qiskit-Intuition
+          hf_token: ${{ secrets.HF_TOKEN }}
+          repo_type: space
+          space_sdk: streamlit
+          private: true

@@ -59,6 +59,12 @@ def inject_theme():
         max-width: 1480px;
     }
 
+    [data-testid="stHeader"] {
+        background: transparent;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid var(--line);}
+    
+
     [data-testid="stSidebar"] {
         background: rgba(6, 15, 15, 0.96);
         border-right: 1px solid var(--line);

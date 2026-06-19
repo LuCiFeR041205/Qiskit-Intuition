@@ -146,7 +146,7 @@ def render_quantum_field():
     <div id="scene">
         <div class="copy">
             <div class="eyebrow">Qiskit Intuition Lab</div>
-            <h1><span id="typed-text">Physics-first quantum composer</span><span class="cursor">▊</span></h1>
+            <h1><span id="typed-text">A Physics-Focused Quantum Composer</span><span class="cursor">▊</span></h1>
             <p>Build circuits, watch state vectors move through a 3D field, and learn Qiskit from first qubit experiments to hardware-ready workflows.</p>
             <div class="readout">
                 <div class="tile"><strong>01</strong><span>learn the physics</span></div>
@@ -161,7 +161,7 @@ def render_quantum_field():
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
         // ── Typing animation (progressive enhancement) ──
-        const fullText = "Physics-first quantum composer";
+        const fullText = "A Physics-Focused Quantum Composer";
         const typedEl = document.getElementById("typed-text");
         // Clear the static fallback text and re-type it
         typedEl.textContent = "";

@@ -25,3 +25,6 @@ Thumbs.db
 
 # Streamlit specific
 .streamlit/
+
+# Local Hugging Face Space clone
+Qiskit-Intuition/
