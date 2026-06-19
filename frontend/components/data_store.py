@@ -70,7 +70,7 @@ CURRICULUM = {
             "lesson_text": "Now that we can construct a circuit recipe, let's look at the actual ingredients and baking sheets in Qiskit:<br><br><ul><li><strong>QuantumCircuit</strong>: This is the abstract recipe (the list of gates to be executed).</li><li><strong>Statevector</strong>: This is the exact mathematical description of the qubit's state at any point. Think of it as the perfect, infinite-precision snapshot of a spinning coin before it lands.</li><li><strong>Sampler</strong>: This is the simulator or device execution tool that shoots actual samples (like flipping a coin 1024 times and counting heads vs tails).</li></ul><br>Understanding the difference between the abstract recipe (circuit) and the simulated physical state (statevector) is the first major step to quantum mastery! Try pasting a circuit in the Sandbox and viewing its output.",
             "tutorial_code": "from qiskit import QuantumCircuit\nfrom qiskit.quantum_info import Statevector\n\n# Create a 2-qubit circuit\nqc = QuantumCircuit(2)\nqc.h(0)\nqc.cx(0, 1)\n\n# Get the exact simulated statevector representing the circuit state\nsv = Statevector.from_instruction(qc)\nprint('Perfect Statevector Amplitudes:')\nprint(sv.data)\n",
             "tutor_challenge": "If a Statevector is an exact mathematical snapshot of a quantum state, what happens to the Statevector when a measurement gate is added to the circuit? Test it in the Sandbox!"
-        },
+        }
     },
     "Level 1: Quantum Foundations": {
         "The Qubit": {

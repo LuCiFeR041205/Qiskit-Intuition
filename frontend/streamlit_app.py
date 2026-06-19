@@ -389,13 +389,119 @@ def render_learning_roadmap():
     st.markdown(f"<div class='roadmap' role='list' aria-label='Learning Roadmap'>{''.join(steps)}</div>", unsafe_allow_html=True)
 
 
+def get_selected_lesson():
+    levels = list(CURRICULUM.keys())
+    selected_level = st.session_state.get("selected_level", levels[0])
+    if selected_level not in CURRICULUM:
+        selected_level = levels[0]
+
+    modules = list(CURRICULUM[selected_level].keys())
+    selected_module = st.session_state.get("selected_module", modules[0])
+    if selected_module not in CURRICULUM[selected_level]:
+        selected_module = modules[0]
+
+    return selected_level, selected_module, CURRICULUM[selected_level][selected_module]
+
+
+def render_ai_teaching_lab(module, lesson, surface=st):
+    surface.markdown("### AI Teaching Lab")
+    if f"feynman_{module}" not in st.session_state:
+        st.session_state[f"feynman_{module}"] = ""
+        st.session_state[f"code_{module}"] = ""
+        st.session_state[f"tutor_{module}"] = ""
+
+    surface.markdown("**A.C.E. Tutor**")
+    surface.markdown(
+        f"Welcome to the **{module}** module. "
+        f"{lesson['big_idea']} "
+        f"Use the button below to activate the AI teaching agents, "
+        f"or explore the Bloch sphere and composer on your own first."
+    )
+
+    if surface.button("🚀 Generate Explanation, Code, and Checkpoint", use_container_width=True, key=f"teaching_lab_{module}"):
+        import time
+
+        def offline_stream(text: str):
+            words = text.split(" ")
+            for w in words:
+                yield w + " "
+                time.sleep(0.012)
+
+        def clean_html_to_markdown(html: str) -> str:
+            clean = html.replace("<br>", "\n").replace("<strong>", "**").replace("</strong>", "**")
+            clean = clean.replace("<ul>", "").replace("</ul>", "").replace("<li>", "- ").replace("</li>", "\n")
+            clean = clean.replace("<code>", "`").replace("</code>", "`")
+            return clean
+
+        raw_lesson = lesson.get("lesson_text", "Lesson content active.")
+        lesson_md = clean_html_to_markdown(raw_lesson)
+        code_md = f"Here is the physical code template for **{module}**:\n\n```python\n{lesson.get('tutorial_code', '# Code template')}\n```"
+        challenge_md = f"**Diagnostic protocol online:**\n\n{lesson.get('tutor_challenge', 'Ready to test understanding.')}"
+
+        surface.markdown("**Physical intuition**")
+        st.session_state[f"feynman_{module}"] = surface.write_stream(offline_stream(lesson_md))
+        surface.markdown("**Qiskit code**")
+        st.session_state[f"code_{module}"] = surface.write_stream(offline_stream(code_md))
+        surface.markdown("**Socratic checkpoint**")
+        st.session_state[f"tutor_{module}"] = surface.write_stream(offline_stream(challenge_md))
+
+    if st.session_state[f"feynman_{module}"]:
+        with surface.expander("Saved teaching output", expanded=False):
+            surface.markdown(st.session_state[f"feynman_{module}"])
+            surface.markdown(st.session_state[f"code_{module}"])
+            surface.markdown(st.session_state[f"tutor_{module}"])
+
+
+def render_interactive_code_challenge(module, lesson):
+    if not st.session_state.get(f"feynman_{module}"):
+        return
+
+    st.divider()
+    st.markdown("### 💻 Interactive Code Challenge")
+    st.caption("Try writing the Qiskit code to solve the challenge above!")
+
+    challenge_code_key = f"challenge_code_{module}"
+    if challenge_code_key not in st.session_state:
+        st.session_state[challenge_code_key] = lesson.get("tutorial_code", "# Write your Qiskit code here...\n")
+
+    user_code = st.text_area(
+        "Challenge Editor",
+        value=st.session_state[challenge_code_key],
+        height=250,
+        label_visibility="collapsed",
+    )
+    st.session_state[challenge_code_key] = user_code
+
+    if st.button("▶ Run Challenge Code", type="primary"):
+        with st.spinner("Running your code..."):
+            result = execute_notebook_code(user_code)
+
+            if result["success"]:
+                st.success("Execution completed successfully!")
+            else:
+                st.error("Execution failed.")
+                if result["error"]:
+                    st.code(result["error"], language="python")
+                elif result["stderr"]:
+                    st.code(result["stderr"], language="python")
+
+            if result["stdout"]:
+                st.markdown("#### Output")
+                st.code(result["stdout"])
+
+            if result["figures"]:
+                st.markdown("#### Figures")
+                for fig in result["figures"]:
+                    if isinstance(fig, plt.Figure):
+                        st.pyplot(fig)
+                    else:
+                        st.image(fig)
+
+
 # ── Learn Tab ──
 
 def render_curriculum():
-    st.sidebar.header("Learning Path")
-    level = st.sidebar.selectbox("Level", list(CURRICULUM.keys()))
-    module = st.sidebar.radio("Module", list(CURRICULUM[level].keys()))
-    lesson = CURRICULUM[level][module]
+    _, module, lesson = get_selected_lesson()
 
     render_learning_roadmap()
 
@@ -470,92 +576,7 @@ def render_curriculum():
     with sphere:
         render_bloch_sphere(theta_rad, phi_rad, qubit_name="lesson qubit")
 
-    st.divider()
-    st.markdown("### AI Teaching Lab")
-    if f"feynman_{module}" not in st.session_state:
-        st.session_state[f"feynman_{module}"] = ""
-        st.session_state[f"code_{module}"] = ""
-        st.session_state[f"tutor_{module}"] = ""
-
-    with st.chat_message("assistant", avatar="⚛️"):
-        st.markdown("**A.C.E. Tutor**")
-        st.markdown(
-            f"Welcome to the **{module}** module. "
-            f"{lesson['big_idea']} "
-            f"Use the button below to activate the AI teaching agents, "
-            f"or explore the Bloch sphere and composer on your own first."
-        )
-
-    if st.button("🚀 Generate Explanation, Code, and Checkpoint", use_container_width=True):
-        import time
-        
-        def offline_stream(text: str):
-            words = text.split(" ")
-            for w in words:
-                yield w + " "
-                time.sleep(0.012) # Satisfying typewriter rate
-
-        def clean_html_to_markdown(html: str) -> str:
-            clean = html.replace("<br>", "\n").replace("<strong>", "**").replace("</strong>", "**")
-            clean = clean.replace("<ul>", "").replace("</ul>", "").replace("<li>", "- ").replace("</li>", "\n")
-            clean = clean.replace("<code>", "`").replace("</code>", "`")
-            return clean
-
-        raw_lesson = lesson.get("lesson_text", "Lesson content active.")
-        lesson_md = clean_html_to_markdown(raw_lesson)
-        code_md = f"Here is the physical code template for **{module}**:\n\n```python\n{lesson.get('tutorial_code', '# Code template')}\n```"
-        challenge_md = f"**Diagnostic protocol online:**\n\n{lesson.get('tutor_challenge', 'Ready to test understanding.')}"
-
-        with st.chat_message("assistant", avatar="🧠"):
-            st.markdown("**Physical intuition**")
-            st.session_state[f"feynman_{module}"] = st.write_stream(offline_stream(lesson_md))
-        with st.chat_message("assistant", avatar="⌨️"):
-            st.markdown("**Qiskit code**")
-            st.session_state[f"code_{module}"] = st.write_stream(offline_stream(code_md))
-        with st.chat_message("assistant", avatar="🎯"):
-            st.markdown("**Socratic checkpoint**")
-            st.session_state[f"tutor_{module}"] = st.write_stream(offline_stream(challenge_md))
-
-    if st.session_state[f"feynman_{module}"]:
-        with st.expander("Saved teaching output", expanded=True):
-            st.markdown(st.session_state[f"feynman_{module}"])
-            st.markdown(st.session_state[f"code_{module}"])
-            st.markdown(st.session_state[f"tutor_{module}"])
-            
-        st.markdown("### 💻 Interactive Code Challenge")
-        st.caption("Try writing the Qiskit code to solve the challenge above!")
-        
-        challenge_code_key = f"challenge_code_{module}"
-        if challenge_code_key not in st.session_state:
-            st.session_state[challenge_code_key] = lesson.get('tutorial_code', '# Write your Qiskit code here...\n')
-            
-        user_code = st.text_area("Challenge Editor", value=st.session_state[challenge_code_key], height=250, label_visibility="collapsed")
-        st.session_state[challenge_code_key] = user_code
-        
-        if st.button("▶ Run Challenge Code", type="primary"):
-            with st.spinner("Running your code..."):
-                result = execute_notebook_code(user_code)
-                
-                if result["success"]:
-                    st.success("Execution completed successfully!")
-                else:
-                    st.error("Execution failed.")
-                    if result["error"]:
-                        st.code(result["error"], language="python")
-                    elif result["stderr"]:
-                        st.code(result["stderr"], language="python")
-                    
-                if result["stdout"]:
-                    st.markdown("#### Output")
-                    st.code(result["stdout"])
-                
-                if result["figures"]:
-                    st.markdown("#### Figures")
-                    for fig in result["figures"]:
-                        if isinstance(fig, plt.Figure):
-                            st.pyplot(fig)
-                        else:
-                            st.image(fig)
+    render_interactive_code_challenge(module, lesson)
 
 
 # ── Compose Tab ──
@@ -736,6 +757,33 @@ def render_cognitive_core_sidebar():
     )
         
     st.sidebar.divider()
+
+    st.sidebar.header("Learning Path")
+    levels = list(CURRICULUM.keys())
+    current_level = st.session_state.get("selected_level", levels[0])
+    if current_level not in CURRICULUM:
+        current_level = levels[0]
+
+    selected_level = st.sidebar.selectbox(
+        "Level",
+        levels,
+        index=levels.index(current_level),
+        key="selected_level",
+    )
+
+    modules = list(CURRICULUM[selected_level].keys())
+    current_module = st.session_state.get("selected_module", modules[0])
+    if current_module not in CURRICULUM[selected_level]:
+        current_module = modules[0]
+        st.session_state.selected_module = current_module
+
+    selected_module = st.sidebar.radio(
+        "Module",
+        modules,
+        index=modules.index(current_module),
+        key="selected_module",
+    )
+    selected_lesson = CURRICULUM[selected_level][selected_module]
     
     #THIS MESSES UP THE SIDEBAR, REMOVED FOR NOW, KEPT THE CODE JUST IN CASE 
     '''st.sidebar.markdown("### 🎛️ Reality Settings")
@@ -747,7 +795,7 @@ def render_cognitive_core_sidebar():
             st.session_state["eli5_mode"] = eli5_mode
             st.rerun()
     with eli5_info:
-        st.info("Explain Like I'm 5 (No Math!)", icon="💡")''' 
+        st.info("Explain Like I'm 5 (No Math!)", icon="💡")
 
     noise_col, noise_info = st.sidebar.columns([3, 1])
     with noise_col:
@@ -756,7 +804,9 @@ def render_cognitive_core_sidebar():
             st.session_state["noisy_simulation"] = noisy_simulation
             st.rerun()
     with noise_info:
-        st.warning("Simulate real-world quantum decoherence", icon="⚠️")
+        st.warning("Simulate real-world quantum decoherence", icon="⚠️")'''
+    st.sidebar.divider()
+    render_ai_teaching_lab(selected_module, selected_lesson, surface=st.sidebar)
 
 
 # ── Main ──
