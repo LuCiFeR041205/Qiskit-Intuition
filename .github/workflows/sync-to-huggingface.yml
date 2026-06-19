@@ -10,13 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: huggingface/hub-sync@v0.2.0
+      - uses: actions/checkout@v4
         with:
-          github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: j76dvyt4q5-cyber/Qiskit-Intuition
-          hf_token: ${{ secrets.HF_TOKEN }}
-          repo_type: space
-          space_sdk: streamlit
-          private: true
+          fetch-depth: 0
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "HF_TOKEN secret is missing."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add huggingface "https://j76dvyt4q5-cyber:${HF_TOKEN}@huggingface.co/spaces/j76dvyt4q5-cyber/Qiskit-Intuition"
+          git push --force huggingface HEAD:main

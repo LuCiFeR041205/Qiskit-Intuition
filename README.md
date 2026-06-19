@@ -1,3 +1,13 @@
+---
+title: Qiskit Intuition
+emoji: ⚛️
+colorFrom: blue
+colorTo: purple
+sdk: streamlit
+app_file: app.py
+pinned: false
+---
+
 # Qiskit Intuition Lab ⚛️
 
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
