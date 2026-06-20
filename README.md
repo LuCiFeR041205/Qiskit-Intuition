@@ -29,7 +29,7 @@ Our goal is to make Qiskit feel learnable from first principles: learners can bu
 - **Qiskit export:** Every visual circuit can be copied as runnable Qiskit code.
 - **Curriculum from basic to advanced:** Lessons now span setup, quantum foundations, circuit skills, simulation, noise, algorithms, primitives, mitigation, and hardware execution.
 - **Sandbox notebook:** Run short Qiskit/Python experiments and capture stdout plus Matplotlib figures.
-- **AI teaching agents:** Optional Gemini-powered tutor, code generator, and Socratic checkpoint helpers.
+- **AI teaching agents:** Offline tutor, code explainer, and Socratic checkpoint helpers that do not require a user key.
 
 ## Learning Path
 
@@ -68,15 +68,9 @@ streamlit run app.py --server.port 8502
 
 Open [http://localhost:8502](http://localhost:8502) or [http://127.0.0.1:8502](http://127.0.0.1:8502).
 
-## Optional AI Tutor Setup
+## AI Tutor Setup
 
-The app runs without an AI key for the visual composer and sandbox. To enable the Gemini-powered teaching agents, add:
-
-```bash
-GEMINI_API_KEY=your_actual_api_key
-```
-
-to a local `.env` file.
+The teaching helpers run offline using local rules and deterministic responses. No hosted model key is required for the public Streamlit app.
 
 ## Project Structure
 
@@ -86,7 +80,7 @@ components/bloch_sphere.py     Interactive 3D Bloch sphere
 components/quantum_field.py    3D physics-inspired hero scene
 utils/quantum_engine.py        Qiskit circuit simulation and export
 utils/notebook_engine.py       Local sandbox execution
-agents/                        Optional AI teaching agents
+agents/                        Offline teaching helpers
 ```
 
 ## Notes

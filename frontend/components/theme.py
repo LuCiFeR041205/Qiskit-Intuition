@@ -175,6 +175,36 @@ def inject_theme():
     .roadmap-step strong { color: var(--gold); display: block; font-size: 0.92rem; margin-bottom: 8px; }
     .roadmap-step span { color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
 
+    /* ── Study materials ── */
+    .study-access {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin: 14px 0 18px 0;
+    }
+
+    .study-access-item {
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--cyan);
+        border-radius: 8px;
+        padding: 12px;
+        background: rgba(10, 27, 25, 0.62);
+        min-height: 92px;
+    }
+
+    .study-access-item strong {
+        color: var(--cyan);
+        display: block;
+        font-size: 0.88rem;
+        margin-bottom: 6px;
+    }
+
+    .study-access-item span {
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.4;
+    }
+
     /* ── Buttons ── */
     .stButton > button {
         border-radius: 6px;

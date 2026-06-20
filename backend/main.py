@@ -10,11 +10,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Load environment variables
 load_dotenv()
 
-from backend.routers import simulate, execute, agents
+from backend.routers import simulate, execute, agents  # noqa: E402
 
 app = FastAPI(
     title="Qiskit Intuition Lab API",
-    description="Decoupled backend service for quantum simulation, code execution, and educational AI agents.",
+    description="Decoupled backend service for quantum simulation, code execution, and offline educational helpers.",
     version="1.0.0"
 )
 
@@ -36,5 +36,5 @@ app.include_router(agents.router, prefix="/agent", tags=["agents"])
 async def health():
     return {
         "status": "healthy",
-        "api_key_configured": bool(os.environ.get("GEMINI_API_KEY"))
+        "offline_ai": True
     }

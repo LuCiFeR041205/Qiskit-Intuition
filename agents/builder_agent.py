@@ -1,7 +1,4 @@
-import os
-import json
-from google import genai
-from google.genai import types
+import math
 
 BUILDER_PROMPT = """
 You are A.C.E., an expert Quantum Circuit Architect.
@@ -27,25 +24,46 @@ Example Response:
 ONLY return valid JSON matching this schema. No markdown wrapping.
 """
 
-def build_circuit_from_prompt(user_prompt: str, num_qubits: int, api_key: str = None) -> list:
-    """Takes a natural language prompt and returns a list of gate dicts."""
-    try:
-        if api_key:
-            client = genai.Client(api_key=api_key)
-        else:
-            client = genai.Client()
-        
-        full_prompt = f"{BUILDER_PROMPT}\n\nThe circuit has {num_qubits} qubits (indices 0 to {num_qubits - 1}).\nUser Request: {user_prompt}"
-        
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=full_prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.1
-            )
-        )
-        return json.loads(response.text)
-    except Exception as e:
-        print(f"Error building circuit: {e}")
+def _gate(gate: str, target: int, control: int = None, angle: float = None) -> dict:
+    return {"gate": gate, "target": target, "control": control, "angle": angle}
+
+
+def _safe_target(index: int, num_qubits: int) -> int:
+    return max(0, min(index, max(num_qubits - 1, 0)))
+
+
+def build_circuit_from_prompt(user_prompt: str, num_qubits: int) -> list:
+    """Takes a natural language prompt and returns simple local gate suggestions."""
+    text = user_prompt.lower()
+    if num_qubits < 1:
         return []
+
+    target = 0
+    control = 0
+    paired_target = _safe_target(1, num_qubits)
+
+    if "qubit 1" in text or "q1" in text:
+        target = _safe_target(1, num_qubits)
+    elif "qubit 2" in text or "q2" in text:
+        target = _safe_target(2, num_qubits)
+    elif "qubit 3" in text or "q3" in text:
+        target = _safe_target(3, num_qubits)
+
+    if "bell" in text or "entangle" in text or "cnot" in text or "cx" in text:
+        if num_qubits < 2:
+            return [_gate("H", 0)]
+        return [_gate("H", control), _gate("CNOT", paired_target, control)]
+    if "hadamard" in text or "superposition" in text or " h " in f" {text} ":
+        return [_gate("H", target)]
+    if "bit flip" in text or "pauli x" in text or " x " in f" {text} ":
+        return [_gate("X", target)]
+    if "phase" in text or "pauli z" in text or " z " in f" {text} ":
+        return [_gate("Z", target)]
+    if "rx" in text or "rotate x" in text:
+        return [_gate("RX", target, angle=math.pi / 2)]
+    if "ry" in text or "rotate y" in text:
+        return [_gate("RY", target, angle=math.pi / 2)]
+    if "rz" in text or "rotate z" in text:
+        return [_gate("RZ", target, angle=math.pi / 2)]
+
+    return []

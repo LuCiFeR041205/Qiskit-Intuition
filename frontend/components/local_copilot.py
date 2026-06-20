@@ -1,9 +1,9 @@
 import streamlit.components.v1 as components
 
-def render_local_copilot(height=600):
+def render_local_copilot(height=600, compact=False):
     """
-    Renders an offline AI Copilot using Transformers.js directly in the browser.
-    No API keys required. Runs a quantized instruction model via WebGL/WASM.
+    Renders an offline AI Copilot directly in the browser.
+    No API keys required. Uses local intent rules so it stays reliable on Spaces.
     """
     html_code = """
     <!DOCTYPE html>
@@ -159,13 +159,57 @@ def render_local_copilot(height=600):
                 width: 0%;
                 transition: width 0.2s;
             }
+            body.compact {
+                padding: 0;
+                height: 100vh;
+            }
+            body.compact .copilot-container {
+                border-radius: 8px;
+                box-shadow: none;
+            }
+            body.compact .header {
+                padding: 8px 10px;
+                font-size: 12px;
+            }
+            body.compact .status-indicator {
+                font-size: 9px;
+                padding: 3px 6px;
+            }
+            body.compact .chat-history {
+                padding: 10px;
+                gap: 8px;
+            }
+            body.compact .message {
+                max-width: 100%;
+                padding: 8px 10px;
+                font-size: 12px;
+                line-height: 1.4;
+            }
+            body.compact .input-area {
+                padding: 10px;
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            body.compact input {
+                min-width: 0;
+                padding: 9px 10px;
+                font-size: 12px;
+            }
+            body.compact button {
+                min-height: 34px;
+                padding: 0 12px;
+                font-size: 12px;
+            }
+            body.compact .progress-container {
+                padding: 8px 10px;
+            }
         </style>
     </head>
-    <body>
+    <body class="__COMPACT_CLASS__">
         <div class="copilot-container">
             <div class="header">
-                <div>A.C.E. OFFLINE PROTOCOL</div>
-                <div class="status-indicator" id="status-badge">LOADING NEURAL CORE</div>
+                <div>A.C.E. LOCAL</div>
+                <div class="status-indicator" id="status-badge">LOCAL READY</div>
             </div>
             <div class="progress-container" id="progress-container">
                 <div class="progress-text" id="progress-text">Downloading WebGPU weights (one-time)...</div>
@@ -174,31 +218,22 @@ def render_local_copilot(height=600):
                 </div>
             </div>
             <div class="chat-history" id="chat">
-                <div class="message msg-ai">Greetings Explorer! I am A.C.E., running 100% locally in your browser. I don't need API keys to help you learn quantum physics. How can I assist you today?</div>
+                <div class="message msg-ai">Greetings Explorer. I am A.C.E., running locally with no external account. Ask about gates, superposition, entanglement, measurement, Qiskit code, or what to try next.</div>
             </div>
             <div class="input-area">
-                <input type="text" id="user-input" placeholder="Ask about quantum circuits..." disabled>
-                <button id="send-btn" disabled>SEND</button>
+                <input type="text" id="user-input" placeholder="Ask about gates, Qiskit, or circuits...">
+                <button id="send-btn">SEND</button>
             </div>
         </div>
 
-        <script type="module">
-            // Import transformers.js from CDN
-            import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers';
-
-            // Configure env to use browser cache
-            env.allowLocalModels = false;
-            env.useBrowserCache = true;
-
+        <script>
             const chatDiv = document.getElementById('chat');
             const inputEl = document.getElementById('user-input');
             const sendBtn = document.getElementById('send-btn');
             const statusBadge = document.getElementById('status-badge');
             const progressContainer = document.getElementById('progress-container');
-            const progressBar = document.getElementById('progress-bar');
             const progressText = document.getElementById('progress-text');
 
-            let generator = null;
             let chatHistory = [
                 { role: 'system', content: 'You are A.C.E. (Advanced Copilot Engine), a helpful AI assistant in a quantum computing lab built with Qiskit and Streamlit. You explain quantum concepts concisely and excitedly.' }
             ];
@@ -211,44 +246,37 @@ def render_local_copilot(height=600):
                 chatDiv.scrollTop = chatDiv.scrollHeight;
             }
 
-            async function initModel() {
-                try {
-                    // Using a small instruct model for browser feasibility
-                    // 'Xenova/Qwen1.5-0.5B-Chat' or 'onnx-community/gemma-3-270m-it-ONNX'
-                    const modelId = 'onnx-community/gemma-3-270m-it-ONNX';
-                    
-                    progressContainer.style.display = 'block';
-                    
-                    generator = await pipeline('text-generation', modelId, {
-                        dtype: 'q4', // Quantized 4-bit for smaller size/speed
-                        progress_callback: (info) => {
-                            if (info.status === 'progress') {
-                                progressBar.style.width = `${info.progress}%`;
-                                progressText.textContent = `Downloading ${info.file}: ${Math.round(info.progress)}%`;
-                            } else if (info.status === 'done') {
-                                progressText.textContent = `Loaded ${info.file}`;
-                            }
-                        }
-                    });
+            function buildOfflineResponse(text) {
+                const q = text.toLowerCase();
 
-                    progressContainer.style.display = 'none';
-                    statusBadge.textContent = 'ONLINE [LOCAL]';
-                    statusBadge.classList.add('ready');
-                    inputEl.disabled = false;
-                    sendBtn.disabled = false;
-                    inputEl.focus();
-
-                } catch (err) {
-                    console.error(err);
-                    statusBadge.textContent = 'ERROR LOADING';
-                    progressText.textContent = 'Error: ' + err.message;
-                    progressText.style.color = 'var(--pink)';
+                if (q.includes('hadamard') || q.includes(' h ') || q.includes('superposition')) {
+                    return 'A Hadamard gate is the classic superposition move: it rotates |0> toward an equal blend of |0> and |1>. In the lab, use H when you want probability to split before interference or entanglement.';
                 }
+                if (q.includes('cnot') || q.includes('cx') || q.includes('entangle')) {
+                    return 'CNOT is the main entangling tool. The control qubit decides whether the target flips. After H on the control, CNOT can create linked outcomes where the two qubits must be described as one shared state.';
+                }
+                if (q.includes('measure') || q.includes('measurement') || q.includes('shots')) {
+                    return 'Measurement turns quantum amplitudes into classical counts. A statevector shows the hidden amplitudes before measurement; shots show sampled outcomes after repeated measurement.';
+                }
+                if (q.includes('phase') || q.includes('z gate') || q.includes('rz') || q.includes('s gate') || q.includes('t gate')) {
+                    return 'Phase gates usually do not change immediate 0/1 probabilities by themselves. They change relative phase, which matters when later gates make paths interfere.';
+                }
+                if (q.includes('qiskit') || q.includes('code') || q.includes('python')) {
+                    return 'Read Qiskit code as a circuit recipe: import tools, create QuantumCircuit, apply gates in order, then simulate, inspect, or measure. The visual composer and exported code should match line by line.';
+                }
+                if (q.includes('bloch')) {
+                    return 'The Bloch sphere shows a single qubit as a direction. North is |0>, south is |1>, the equator is balanced superposition, and rotation around the vertical axis changes phase.';
+                }
+                if (q.includes('what should i do') || q.includes('next') || q.includes('practice')) {
+                    return 'Try this: add H to q0, then CNOT from q0 to q1, then inspect probabilities. Before running it, predict which basis states should appear and which should vanish.';
+                }
+
+                return 'Offline A.C.E. can help with the core lab ideas: gates rotate qubits, phase controls interference, CNOT links qubits, and measurement turns the state into classical results. Ask me about a specific gate, circuit, or Qiskit line.';
             }
 
             async function handleSend() {
                 const text = inputEl.value.trim();
-                if (!text || !generator) return;
+                if (!text) return;
 
                 inputEl.value = '';
                 inputEl.disabled = true;
@@ -264,30 +292,14 @@ def render_local_copilot(height=600):
                 chatDiv.appendChild(responseDiv);
                 chatDiv.scrollTop = chatDiv.scrollHeight;
 
-                try {
-                    // Generate response
-                    const out = await generator(chatHistory, {
-                        max_new_tokens: 150,
-                        temperature: 0.7,
-                        top_p: 0.9,
-                        repetition_penalty: 1.1
-                    });
-                    
-                    // The output contains the full chat history if passed as array, 
-                    // we extract the last generated message.
-                    const generatedText = out[0].generated_text[out[0].generated_text.length - 1].content;
-                    
+                window.setTimeout(() => {
+                    const generatedText = buildOfflineResponse(text);
                     responseDiv.textContent = generatedText;
                     chatHistory.push({ role: 'assistant', content: generatedText });
-
-                } catch (err) {
-                    console.error(err);
-                    responseDiv.textContent = "I experienced a quantum decoherence error. Please try again.";
-                }
-
-                inputEl.disabled = false;
-                sendBtn.disabled = false;
-                inputEl.focus();
+                    inputEl.disabled = false;
+                    sendBtn.disabled = false;
+                    inputEl.focus();
+                }, 160);
             }
 
             sendBtn.addEventListener('click', handleSend);
@@ -295,10 +307,12 @@ def render_local_copilot(height=600):
                 if (e.key === 'Enter') handleSend();
             });
 
-            // Start initialization
-            initModel();
+            progressContainer.style.display = 'none';
+            statusBadge.classList.add('ready');
+            inputEl.focus();
         </script>
     </body>
     </html>
     """
-    components.html(html_code, height=height, scrolling=False)
+    html_code = html_code.replace("__COMPACT_CLASS__", "compact" if compact else "")
+    components.html(html_code, height=height, scrolling=compact)

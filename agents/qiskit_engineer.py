@@ -9,6 +9,6 @@ Your job is to take a quantum concept and provide the exact Qiskit Python code r
 - Ensure it uses Qiskit 1.0+ syntax.
 """
 
-def generate_code(concept: str, analogy: str, api_key: str = None):
+def generate_code(concept: str, analogy: str):
     user_prompt = f"Concept: {concept}\nAnalogy provided: {analogy}\nSynthesize the Qiskit simulation code."
-    return generate_stream(ENGINEER_PROMPT, user_prompt, api_key=api_key)
+    return generate_stream(ENGINEER_PROMPT, user_prompt)

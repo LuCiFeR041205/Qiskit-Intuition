@@ -17,7 +17,7 @@ The user added a gate to their quantum circuit. Explain it using ONLY physical, 
 - Keep it under 80 words and highly visual/playful.
 """
 
-def explain_composer_action(latest_gate: str, qubit: int, full_circuit_desc: str, api_key: str = None, eli5_mode: bool = False):
+def explain_composer_action(latest_gate: str, qubit: int, full_circuit_desc: str, eli5_mode: bool = False):
     user_prompt = f"The user just added the gate '{latest_gate}' to Qubit {qubit}. The full sequence of gates in the circuit is currently: {full_circuit_desc}. Warmly explain the physical effect of this addition."
     prompt_to_use = ELI5_COMPOSER_PROMPT if eli5_mode else COMPOSER_PROMPT
-    return generate_stream(prompt_to_use, user_prompt, api_key=api_key)
+    return generate_stream(prompt_to_use, user_prompt)

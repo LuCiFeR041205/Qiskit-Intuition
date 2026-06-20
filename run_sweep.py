@@ -1,9 +1,4 @@
 import subprocess
-import os
-from google import genai
-from dotenv import load_dotenv
-
-load_dotenv()
 
 def run_ruff():
     """Runs ruff and returns the output string."""
@@ -20,36 +15,18 @@ def run_ruff():
     except Exception as e:
         return f"Error running ruff: {str(e)}"
 
-def analyze_with_ai(ruff_output):
-    """Uses Gemini to analyze ruff output and suggest fixes."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return "GEMINI_API_KEY not found in environment. Cannot perform AI analysis."
+def analyze_locally(ruff_output):
+    """Summarize ruff output without calling an external model."""
+    lines = [line for line in ruff_output.splitlines() if line.strip()]
+    severe_markers = ("F821", "F822", "F823", "E999", "SyntaxError", "ImportError")
+    severe = [line for line in lines if any(marker in line for marker in severe_markers)]
 
-    client = genai.Client(api_key=api_key)
-    
-    prompt = f"""
-You are an expert Python debugger and Qiskit developer.
-I just ran a static analysis sweep on our quantum computing educational app using `ruff`.
+    if severe:
+        top_items = "\n".join(f"- {line}" for line in severe[:3])
+        return f"Most important issues found:\n{top_items}\n\nStart with these because they can break runtime behavior."
 
-Here is the output from `ruff`:
-```text
-{ruff_output}
-```
-
-Please provide a concise summary of the most critical issues. 
-Ignore style warnings (like line length) and focus on actual bugs, undefined variables, or syntax errors.
-Suggest how to fix the top 3 most severe issues.
-"""
-    
-    try:
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-        )
-        return response.text
-    except Exception as e:
-        return f"Error calling Gemini API: {str(e)}"
+    preview = "\n".join(f"- {line}" for line in lines[:3])
+    return f"No obvious runtime-breaking ruff markers found. First reported items:\n{preview}"
 
 if __name__ == "__main__":
     print("🧹 Starting automated bug sweep...")
@@ -59,8 +36,8 @@ if __name__ == "__main__":
     if "Found 0 errors" in ruff_out or not ruff_out.strip():
         print("✅ No issues found by Ruff! The codebase is clean.")
     else:
-        print("🤖 Analyzing issues with A.C.E. ...")
-        ai_analysis = analyze_with_ai(ruff_out)
+        print("🤖 Analyzing issues with local A.C.E. rules ...")
+        ai_analysis = analyze_locally(ruff_out)
         
         print("\n" + "="*50)
         print("🚀 AUTOMATED BUG SWEEP REPORT")

@@ -2,7 +2,6 @@ import os
 import sys
 import importlib.util
 import requests
-import streamlit as st
 
 # Load the ROOT-level agents/base_agent.py directly by file path
 # to avoid the circular import that happens when Python resolves
@@ -11,7 +10,6 @@ _root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 
 def load_root_agent(module_name: str):
     """Load a root-level agents/<module_name>.py avoiding circular imports with frontend/agents/."""
-    import importlib.util, sys
     pkg_name = "root_agents"
     # Register the root agents/ directory as a package the first time
     if pkg_name not in sys.modules:
@@ -55,10 +53,7 @@ def is_backend_online():
 def stream_from_backend(endpoint: str, payload: dict, local_generator):
     if is_backend_online():
         try:
-            headers = {}
-            if "user_gemini_api_key" in st.session_state and st.session_state["user_gemini_api_key"]:
-                headers["X-Gemini-API-Key"] = st.session_state["user_gemini_api_key"]
-            response = requests.post(f"{BACKEND_URL}/agent/{endpoint}", json=payload, stream=True, headers=headers)
+            response = requests.post(f"{BACKEND_URL}/agent/{endpoint}", json=payload, stream=True)
             if response.status_code == 200:
                 for line in response.iter_lines():
                     if line:

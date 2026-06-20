@@ -1,28 +1,37 @@
-import os
-from google import genai
-from google.genai import types
+import time
 
-def generate_stream(system_prompt: str, user_prompt: str, api_key: str = None):
+def generate_stream(system_prompt: str, user_prompt: str):
     """
-    Calls the Gemini API and yields the text chunks for streaming.
-    Supports a dynamic api_key argument.
+    Offline fallback stream used by legacy agent wrappers.
+
+    The app's public AI paths should not require external accounts. This
+    keeps the older agent interface intact while returning deterministic local
+    guidance instead of calling an external model.
     """
-    try:
-        # Initialize client with dynamic api_key if provided, otherwise default to env variables
-        if api_key:
-            client = genai.Client(api_key=api_key)
-        else:
-            client = genai.Client()
-            
-        response = client.models.generate_content_stream(
-            model='gemini-2.5-flash',
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=0.7,
-            ),
+    prompt = f"{system_prompt}\n{user_prompt}".lower()
+
+    if "code" in prompt or "qiskit" in prompt:
+        response = (
+            "Explorer, I am running in offline mode. Read the code as a circuit recipe: "
+            "imports prepare the tools, `QuantumCircuit` creates the qubits/classical bits, "
+            "gate calls transform the quantum state, and measurement or statevector calls reveal "
+            "what the circuit predicts. For exact behavior, run it in the Sandbox and compare the "
+            "output with the circuit diagram."
         )
-        for chunk in response:
-            yield chunk.text
-    except Exception as e:
-        yield f"⚠️ **J.A.R.V.I.S. System Error:** Mainframe disconnected. Ensure GEMINI_API_KEY is configured. Details: {e}"
+    elif "challenge" in prompt or "problem" in prompt or "checkpoint" in prompt:
+        response = (
+            "Explorer, try this offline checkpoint: identify which operation changes probability, "
+            "which operation changes phase, and which operation links two qubits. Then predict how "
+            "the measurement bars should shift before running the circuit."
+        )
+    else:
+        response = (
+            "Explorer, I am using a local offline teaching routine. Focus on the physical picture: "
+            "qubits begin as |0>, gates rotate or entangle their state, and measurement turns that "
+            "state into classical outcomes. Use the Learn, Compose, and Sandbox panels together to "
+            "test the idea."
+        )
+
+    for word in response.split(" "):
+        yield word + " "
+        time.sleep(0.01)

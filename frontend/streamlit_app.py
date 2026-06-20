@@ -187,7 +187,6 @@ def init_session_state():
         "num_qubits": 2,
         "chat_history": [],
         "sandbox_code": PRESET_EXPERIMENTS["Bell State"]["code"],
-        "user_gemini_api_key": "",
         "eli5_mode": False,
         "noisy_simulation": False,
     }
@@ -501,7 +500,11 @@ def render_interactive_code_challenge(module, lesson):
 # ── Learn Tab ──
 
 def render_curriculum():
-    _, module, lesson = get_selected_lesson()
+    st.sidebar.header("Learning Path")
+    levels = list(CURRICULUM.keys())
+    level = st.sidebar.selectbox("Level", levels)
+    module = st.sidebar.radio("Module", list(CURRICULUM[level].keys()))
+    lesson = CURRICULUM[level][module]
 
     render_learning_roadmap()
 
@@ -576,6 +579,8 @@ def render_curriculum():
     with sphere:
         render_bloch_sphere(theta_rad, phi_rad, qubit_name="lesson qubit")
 
+    st.divider()
+    render_ai_teaching_lab(module, lesson)
     render_interactive_code_challenge(module, lesson)
 
 
@@ -639,8 +644,44 @@ def render_composer():
 
 def render_chat():
     st.markdown("## A.C.E. Copilot Console")
-    st.caption("Ask anything about quantum computing. Your copilot runs 100% locally in your browser.")
-    render_local_copilot()
+    st.caption("A.C.E. now lives in the sidebar so it can stay with you across the lab.")
+    st.info("Use the sidebar copilot for offline quantum help while you build, learn, and run experiments.")
+
+
+def render_offline_code_explanation(code: str):
+    lines = [line.strip() for line in code.splitlines() if line.strip()]
+    observations = []
+
+    if any("QuantumCircuit" in line for line in lines):
+        observations.append("You create a `QuantumCircuit`, which is the recipe board where each qubit operation is placed in order.")
+    if any(".h(" in line or ".h " in line for line in lines):
+        observations.append("A Hadamard gate appears, so at least one qubit is being moved into superposition.")
+    if any(".x(" in line or ".x " in line for line in lines):
+        observations.append("A Pauli-X gate appears, which acts like a quantum bit flip between |0> and |1>.")
+    if any(".cx(" in line or ".cnot(" in line for line in lines):
+        observations.append("A controlled-X operation appears, which can entangle qubits by making one qubit depend on another.")
+    if any("measure" in line for line in lines):
+        observations.append("The circuit includes measurement, so the quantum state is being converted into classical bits.")
+    if any("Statevector" in line for line in lines):
+        observations.append("Statevector inspection is used, so you are looking at amplitudes before sampling noise or measurement randomness.")
+    if any("AerSimulator" in line or "Simulator" in line for line in lines):
+        observations.append("A simulator is involved, so the experiment runs locally rather than on quantum hardware.")
+
+    if not observations:
+        observations.append("This code is treated as a local Qiskit/Python experiment. Read it top to bottom as setup, circuit construction, execution, then output.")
+
+    text = [
+        "**A.C.E. offline readout**",
+        "",
+        "No API key is used here. I am giving a local structural explanation of the code you wrote.",
+        "",
+    ]
+    text.extend(f"- {item}" for item in observations)
+    text.extend([
+        "",
+        "**Next check:** run the code, then compare the output with the circuit diagram and probability readout.",
+    ])
+    return "\n".join(text)
 
 
 # ── Sandbox Tab ──
@@ -648,19 +689,6 @@ def render_chat():
 def render_sandbox():
     st.markdown("## Qiskit Sandbox")
     st.caption("Run short Qiskit experiments locally and compare the output with the visual composer.")
-
-    # Check if API key is provided
-    api_key_configured = st.session_state.get("user_gemini_api_key", "").strip()
-    is_online = is_backend_online()
-    backend_has_key = False
-    if is_online:
-        try:
-            r = requests.get(f"{BACKEND_URL}/health", timeout=0.5)
-            if r.status_code == 200:
-                backend_has_key = r.json().get("api_key_configured", False)
-        except Exception:
-            pass
-    has_active_key = bool(api_key_configured or backend_has_key)
 
     # Terminal header
     render_sandbox_header()
@@ -690,8 +718,7 @@ def render_sandbox():
         explain_clicked = st.button(
             "🧠 Explain This Code",
             use_container_width=True,
-            disabled=not has_active_key,
-            help="Provide a Gemini API Key in the sidebar to enable live code explanations."
+            help="Uses a local rule-based explanation. No API key required."
         )
 
     if run_clicked:
@@ -721,19 +748,10 @@ def render_sandbox():
     if explain_clicked:
         with st.chat_message("assistant", avatar="🧠"):
             st.markdown("**A.C.E. Code Explainer**")
-            from frontend.agents.base_agent import generate_stream
-            explain_prompt = """
-You are A.C.E., a warm and brilliant code tutor. The user has written Qiskit code.
-Explain what each significant line does in plain English, referencing the quantum physics involved.
-Be encouraging and address the user as 'Explorer'. Use markdown formatting.
-Keep the explanation clear, educational, and under 300 words.
-"""
-            response = st.write_stream(generate_stream(explain_prompt, f"Explain this code:\n\n```python\n{notebook_code}\n```"))
+            st.markdown(render_offline_code_explanation(notebook_code))
 
 
 def render_cognitive_core_sidebar():
-    has_active_key = True
-    
     status_color = "#65f4d4"
     status_text = "OFFLINE COGNITION ACTIVE"
     pulse_style = f"background-color: {status_color}; box-shadow: 0 0 10px {status_color};"
@@ -749,7 +767,7 @@ def render_cognitive_core_sidebar():
                 </div>
             </div>
             <p style="font-size: 0.8rem; color: #8fa09e; line-height: 1.4; margin: 0 0 12px 0;">
-                All AI agents are running 100% locally in your browser. No API keys required. Privacy maximized.
+                A.C.E. uses a browser-local model and local teaching routines. No external account required.
             </p>
         </div>
         """,
@@ -757,33 +775,9 @@ def render_cognitive_core_sidebar():
     )
         
     st.sidebar.divider()
-
-    st.sidebar.header("Learning Path")
-    levels = list(CURRICULUM.keys())
-    current_level = st.session_state.get("selected_level", levels[0])
-    if current_level not in CURRICULUM:
-        current_level = levels[0]
-
-    selected_level = st.sidebar.selectbox(
-        "Level",
-        levels,
-        index=levels.index(current_level),
-        key="selected_level",
-    )
-
-    modules = list(CURRICULUM[selected_level].keys())
-    current_module = st.session_state.get("selected_module", modules[0])
-    if current_module not in CURRICULUM[selected_level]:
-        current_module = modules[0]
-        st.session_state.selected_module = current_module
-
-    selected_module = st.sidebar.radio(
-        "Module",
-        modules,
-        index=modules.index(current_module),
-        key="selected_module",
-    )
-    selected_lesson = CURRICULUM[selected_level][selected_module]
+    st.sidebar.markdown("### A.C.E. Offline")
+    with st.sidebar:
+        render_local_copilot(height=430, compact=True)
     
     #THIS MESSES UP THE SIDEBAR, REMOVED FOR NOW, KEPT THE CODE JUST IN CASE 
     '''st.sidebar.markdown("### 🎛️ Reality Settings")
@@ -805,8 +799,6 @@ def render_cognitive_core_sidebar():
             st.rerun()
     with noise_info:
         st.warning("Simulate real-world quantum decoherence", icon="⚠️")'''
-    st.sidebar.divider()
-    render_ai_teaching_lab(selected_module, selected_lesson, surface=st.sidebar)
 
 
 # ── Main ──

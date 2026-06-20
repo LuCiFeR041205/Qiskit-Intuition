@@ -1,7 +1,6 @@
+import re
+
 from .base_agent import generate_stream
-from .feynman_agent import explain_concept
-from .qiskit_engineer import generate_code
-from .socratic_tutor import generate_problem
 
 ROUTER_PROMPT = """
 You are a silent routing classifier. Given a user message about quantum computing, 
@@ -50,11 +49,6 @@ AGENT_META = {
     },
 }
 
-
-import os
-import re
-
-
 def _keyword_classify(msg: str) -> str:
     """Fast, deterministic intent classification using keyword patterns."""
     lower = msg.lower().strip()
@@ -78,50 +72,27 @@ def _keyword_classify(msg: str) -> str:
     return "general"
 
 
-def classify_intent(user_message: str, api_key: str = None) -> str:
-    """Classify user intent. Uses keywords first; tries Gemini only when the
-    API key is set and keywords return 'general' (ambiguous)."""
-    keyword_result = _keyword_classify(user_message)
-
-    # If keywords gave a clear specialist match, use it — no API call needed
-    if keyword_result != "general":
-        return keyword_result
-
-    # For ambiguous messages, try Gemini if available
-    if not api_key and not os.environ.get("GEMINI_API_KEY"):
-        return keyword_result
-
-    try:
-        chunks = []
-        for chunk in generate_stream(ROUTER_PROMPT, user_message, api_key=api_key):
-            chunks.append(chunk)
-        result = "".join(chunks).strip().lower()
-
-        for category in ("explain", "code", "test", "general"):
-            if category in result:
-                return category
-    except Exception:
-        pass
-
-    return keyword_result
+def classify_intent(user_message: str) -> str:
+    """Classify user intent with local keyword patterns."""
+    return _keyword_classify(user_message)
 
 
-def route_and_respond(user_message: str, intent: str = None, api_key: str = None, eli5_mode: bool = False):
+def route_and_respond(user_message: str, intent: str = None, eli5_mode: bool = False):
     """Route a user message to the appropriate agent and return a stream."""
     if intent is None:
-        intent = classify_intent(user_message, api_key=api_key)
+        intent = classify_intent(user_message)
 
     if intent == "explain":
-        return intent, explain_concept_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
+        return intent, explain_concept_chat(user_message, eli5_mode=eli5_mode)
     elif intent == "code":
-        return intent, generate_code_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
+        return intent, generate_code_chat(user_message, eli5_mode=eli5_mode)
     elif intent == "test":
-        return intent, generate_problem_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
+        return intent, generate_problem_chat(user_message, eli5_mode=eli5_mode)
     else:
-        return intent, general_chat(user_message, api_key=api_key, eli5_mode=eli5_mode)
+        return intent, general_chat(user_message, eli5_mode=eli5_mode)
 
 
-def explain_concept_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
+def explain_concept_chat(user_message: str, eli5_mode: bool = False):
     if eli5_mode:
         prompt = """
 You are A.C.E., acting as a fun and extremely simple teacher for a 5-year-old child!
@@ -138,10 +109,10 @@ mechanical or physical analogies. Be warm, address them as 'Explorer'.
 Always maintain a polite, sophisticated, and gender-neutral British AI persona.
 Use markdown formatting for clarity. Keep it engaging and under 250 words.
 """
-    return generate_stream(prompt, user_message, api_key=api_key)
+    return generate_stream(prompt, user_message)
 
 
-def generate_code_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
+def generate_code_chat(user_message: str, eli5_mode: bool = False):
     prompt = """
 You are A.C.E., acting as the Qiskit Engineer.
 Generate clean, well-commented Qiskit Python code for what the user is asking.
@@ -155,10 +126,10 @@ Generate clean, well-commented Qiskit Python code for what the user is asking.
     if eli5_mode:
         prompt += "\n- Add extremely simple analogies in the code comments for a 5-year-old."
         
-    return generate_stream(prompt, user_message, api_key=api_key)
+    return generate_stream(prompt, user_message)
 
 
-def generate_problem_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
+def generate_problem_chat(user_message: str, eli5_mode: bool = False):
     if eli5_mode:
         prompt = """
 You are A.C.E., acting as a fun and simple teacher for a 5-year-old child!
@@ -177,10 +148,10 @@ Create a thought-provoking conceptual challenge related to what the user mention
 - Be warm and encouraging, address the user as 'Explorer'.
 - Keep it under 150 words.
 """
-    return generate_stream(prompt, user_message, api_key=api_key)
+    return generate_stream(prompt, user_message)
 
 
-def general_chat(user_message: str, api_key: str = None, eli5_mode: bool = False):
+def general_chat(user_message: str, eli5_mode: bool = False):
     prompt = GENERAL_PROMPT
     if eli5_mode:
         prompt = """
@@ -191,4 +162,4 @@ You are A.C.E., a fun and brilliant AI companion acting as a teacher for a 5-yea
 - Keep responses focused, clear, and under 150 words.
 - Suggest fun things they could try in the Compose tab.
 """
-    return generate_stream(prompt, user_message, api_key=api_key)
+    return generate_stream(prompt, user_message)

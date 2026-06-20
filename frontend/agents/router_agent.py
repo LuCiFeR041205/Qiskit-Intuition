@@ -1,7 +1,4 @@
-import os
 import requests
-import json
-import streamlit as st
 from .base_agent import BACKEND_URL, is_backend_online, generate_stream, load_root_agent
 
 # Load root-level router_agent by file path — avoids circular import
@@ -32,10 +29,7 @@ def route_and_respond(user_message: str, intent: str = None, eli5_mode: bool = F
         
     if is_backend_online():
         try:
-            headers = {}
-            if "user_gemini_api_key" in st.session_state and st.session_state["user_gemini_api_key"]:
-                headers["X-Gemini-API-Key"] = st.session_state["user_gemini_api_key"]
-            response = requests.post(f"{BACKEND_URL}/agent/route", json={"user_message": user_message, "eli5_mode": eli5_mode}, stream=True, headers=headers)
+            response = requests.post(f"{BACKEND_URL}/agent/route", json={"user_message": user_message, "eli5_mode": eli5_mode}, stream=True)
             if response.status_code == 200:
                 def sse_parser():
                     current_event = None
