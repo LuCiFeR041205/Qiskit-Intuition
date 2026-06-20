@@ -1,29 +1,26 @@
-import math
-
-from dotenv import load_dotenv
-load_dotenv()
-
-import streamlit as st
-
-import requests
-import json
 import base64
+import math
 from io import BytesIO
-from PIL import Image
+
 import matplotlib.pyplot as plt
+import requests
+import streamlit as st
+from dotenv import load_dotenv
+from PIL import Image
 
 # Client-side agent and component imports
 from frontend.agents.composer_agent import explain_composer_action
-from frontend.agents.feynman_agent import explain_concept
-from frontend.agents.qiskit_engineer import generate_code
-from frontend.agents.socratic_tutor import generate_problem
-from frontend.agents.router_agent import route_and_respond, classify_intent, AGENT_META
 from frontend.components.bloch_sphere import render_bloch_sphere
 from frontend.components.quantum_field import render_quantum_field
 from frontend.components.circuit_composer import render_circuit_composer
 from frontend.components.code_editor import render_sandbox_header, PRESET_EXPERIMENTS
 from frontend.components.local_copilot import render_local_copilot
-from backend.core.quest_engine import get_quests, render_quest_tab
+from frontend.components.data_store import GATE_LIBRARY, CURRICULUM
+from frontend.components.theme import inject_theme
+from backend.core.quest_engine import render_quest_tab
+
+load_dotenv()
+
 BACKEND_URL = "http://localhost:8000"
 
 def is_backend_online():
@@ -176,9 +173,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from frontend.components.data_store import GATE_LIBRARY, CURRICULUM
-from frontend.components.theme import inject_theme
-
 def init_session_state():
     defaults = {
         "composer_gates": [],
@@ -247,6 +241,22 @@ def build_engine():
     return engine
 
 
+def get_composer_context():
+    if not st.session_state.composer_gates:
+        return f"Visual circuit: {st.session_state.num_qubits} qubits, no gates added."
+
+    sequence = []
+    for index, gate in enumerate(st.session_state.composer_gates, start=1):
+        if gate["gate"] == "CNOT":
+            sequence.append(f"{index}. CNOT control q{gate['control']} target q{gate['target']}")
+        elif gate["gate"] in {"RX", "RY", "RZ"}:
+            sequence.append(f"{index}. {gate['gate']} on q{gate['target']} angle {gate.get('angle', 0):.3f} radians")
+        else:
+            sequence.append(f"{index}. {gate['gate']} on q{gate['target']}")
+
+    return f"Visual circuit: {st.session_state.num_qubits} qubits. Gates: " + "; ".join(sequence)
+
+
 # ── Gate Palette ──
 
 def render_gate_palette():
@@ -303,13 +313,13 @@ def render_gate_palette():
 # ── Composer Feedback ──
 
 def render_composer_feedback():
-    st.markdown("#### Physics Coach")
+    st.markdown("#### A.C.E. Circuit Coach")
     if not st.session_state.composer_last_gate:
         st.markdown(
             """
 <div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
-    <strong>Ready state:</strong><br>
-    <span>Add a gate and the coach will explain what physically changed in the circuit.</span>
+    <strong>Waiting for a gate</strong><br>
+    <span>Add a gate from the palette and A.C.E. will summarize the physical change here.</span>
 </div>
             """,
             unsafe_allow_html=True,
@@ -317,20 +327,28 @@ def render_composer_feedback():
         return
 
     gate_name, q_idx = st.session_state.composer_last_gate
-    with st.chat_message("assistant", avatar="⚛️"):
-        st.markdown("**A.C.E. Physics Coach**")
-        if not st.session_state.composer_ai_feedback:
-            sequence = []
-            for gate in st.session_state.composer_gates:
-                if gate["gate"] == "CNOT":
-                    sequence.append(f"CNOT control q{gate['control']} target q{gate['target']}")
-                else:
-                    sequence.append(f"{gate['gate']} on q{gate['target']}")
-            st.session_state.composer_ai_feedback = st.write_stream(
-                explain_composer_action(gate_name, q_idx, " → ".join(sequence), eli5_mode=st.session_state.get("eli5_mode", False))
-            )
-        else:
-            st.markdown(st.session_state.composer_ai_feedback)
+    st.markdown(
+        f"""
+<div class="physics-card" role="region" aria-label="A.C.E. Circuit Coach" tabindex="0">
+    <strong>Latest move</strong><br>
+    <span>{gate_name} on q{q_idx}</span>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if not st.session_state.composer_ai_feedback:
+        sequence = []
+        for gate in st.session_state.composer_gates:
+            if gate["gate"] == "CNOT":
+                sequence.append(f"CNOT control q{gate['control']} target q{gate['target']}")
+            else:
+                sequence.append(f"{gate['gate']} on q{gate['target']}")
+        st.session_state.composer_ai_feedback = st.write_stream(
+            explain_composer_action(gate_name, q_idx, " → ".join(sequence), eli5_mode=st.session_state.get("eli5_mode", False))
+        )
+    else:
+        st.markdown(st.session_state.composer_ai_feedback)
 
 
 # ── Probability Bars ──
@@ -587,6 +605,15 @@ def render_curriculum():
 # ── Compose Tab ──
 
 def render_composer():
+    engine = build_engine()
+
+    st.markdown("## Composer Missions")
+    st.caption("Use the visual composer below to complete the active quest.")
+    render_quest_tab(engine)
+
+    st.divider()
+    st.markdown("## Visual Composer")
+
     st.sidebar.header("Composer Setup")
     selected_qubits = st.sidebar.slider("Qubits", 1, 4, st.session_state.num_qubits)
     if selected_qubits != st.session_state.num_qubits:
@@ -607,8 +634,7 @@ def render_composer():
         st.markdown("#### Visual Circuit")
         render_circuit_composer(st.session_state.composer_gates, st.session_state.num_qubits)
         
-        st.markdown("#### 🗣️ Natural Language Circuit Builder")
-        st.info("A.C.E. Builder is running locally. Go to the Copilot tab to chat!")
+        st.markdown("#### Gate Palette & A.C.E. Coach")
         controls, feedback = st.columns([4, 8])
         with controls:
             render_gate_palette()
@@ -771,7 +797,7 @@ def render_cognitive_core_sidebar():
     st.sidebar.divider()
     st.sidebar.markdown("### A.C.E. Offline")
     with st.sidebar:
-        render_local_copilot(height=430, compact=True)
+        render_local_copilot(height=430, compact=True, lab_context=get_composer_context())
 
 
 # ── Main ──
@@ -784,17 +810,13 @@ render_cognitive_core_sidebar()
 
 render_quantum_field()
 
-tab_learn, tab_compose, tab_quests, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🎯 Quests", "🧪 Sandbox"])
+tab_learn, tab_compose, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🧪 Sandbox"])
 
 with tab_learn:
     render_curriculum()
 
 with tab_compose:
     render_composer()
-
-with tab_quests:
-    q_engine = build_engine()
-    render_quest_tab(q_engine)
 
 with tab_sandbox:
     render_sandbox()

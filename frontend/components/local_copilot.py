@@ -21,9 +21,13 @@ ACE_SYSTEM_PROMPT = """You are A.C.E. (Advanced Copilot Engine), a helpful local
 Explain quantum computing clearly, physically, and concisely.
 Use short Qiskit examples when helpful.
 Address the learner as Explorer.
+Treat the user's latest message as the main task. Do not keep answering an older topic unless the user asks you to.
+You may only claim to see the visual circuit when the provided Current Lab Context says what is in the circuit.
+If the user asks whether you can see a gate, answer from Current Lab Context first.
+When explaining the S gate: it is a phase gate. It leaves |0> unchanged and maps |1> to i|1>. It does not flip |0> to |1>.
 If you are uncertain, say what to test in the lab rather than pretending.
 Ensure you offer code examples when the user asks about specific gates, circuits, or Qiskit functions.
-Furthermore, do not include any '#'s in your responses, and keep the formatting clean and simple, but include symbols as needed.
+Do not use Markdown headings, hashtags, tables, or bold markers. Keep formatting clean and simple, but include symbols as needed.
 Ensure that you do not exceed ~175 words, or 250 tokens, in your reponse. Never leave reponses incomplete."""
 ACE_GENERATION_SETTINGS = {
     "max_new_tokens": 250,
@@ -33,7 +37,7 @@ ACE_GENERATION_SETTINGS = {
 }
 
 
-def render_local_copilot(height=600, compact=False):
+def render_local_copilot(height=600, compact=False, lab_context="No live circuit context is available."):
     """
     Renders an offline AI Copilot directly in the browser.
     No API keys required. Loads a quantized local model in WebGPU-capable browsers.
@@ -265,6 +269,7 @@ def render_local_copilot(height=600, compact=False):
             // Contributor knobs copied from the Python Easy Edit Zone above.
             const MODEL_ID = __ACE_MODEL_ID_JSON__;
             const SYSTEM_PROMPT = __ACE_SYSTEM_PROMPT_JSON__;
+            const LAB_CONTEXT = __ACE_LAB_CONTEXT_JSON__;
             const READY_LABEL = __ACE_LOADED_LABEL_JSON__;
             const LOADING_LABEL = __ACE_LOADING_LABEL_JSON__;
             const FALLBACK_LABEL = __ACE_FALLBACK_LABEL_JSON__;
@@ -342,13 +347,38 @@ def render_local_copilot(height=600, compact=False):
                 return 'The local model could not load in this browser, so I am using a small fallback. Ask about a specific gate, circuit, or Qiskit line for the best offline help.';
             }
 
+            function answerCircuitVisibilityQuestion(text) {
+                const q = text.toLowerCase();
+                const isVisibilityQuestion =
+                    q.includes('can you see') ||
+                    q.includes('do you see') ||
+                    q.includes('just added') ||
+                    q.includes('visual circuit') ||
+                    q.includes('current circuit');
+
+                if (!isVisibilityQuestion) {
+                    return null;
+                }
+
+                const context = LAB_CONTEXT.trim();
+                if (!context || context.toLowerCase().includes('no gates')) {
+                    return 'I can only see the circuit state that the app passes into this sidebar. Right now that context says there are no gates in the visual circuit.';
+                }
+
+                if ((q.includes('s gate') || q.includes(' s ')) && context.includes('S')) {
+                    return `Yes. The current visual circuit context includes an S gate: ${context}. The S gate is a phase gate: it leaves |0> unchanged and maps |1> to i|1>.`;
+                }
+
+                return `I can see the circuit context the app passed to me: ${context}.`;
+            }
+
             function buildPrompt(userText) {
-                const recentTurns = chatHistory.slice(-6);
+                const recentTurns = chatHistory.slice(-4);
                 const formattedTurns = recentTurns
                     .map((msg) => `<|im_start|>${msg.role}\\n${msg.content}<|im_end|>`)
                     .join('\\n');
 
-                return `<|im_start|>system\\n${SYSTEM_PROMPT}<|im_end|>\\n${formattedTurns}\\n<|im_start|>user\\n${userText}<|im_end|>\\n<|im_start|>assistant\\n`;
+                return `<|im_start|>system\\n${SYSTEM_PROMPT}\\n\\nCurrent Lab Context:\\n${LAB_CONTEXT}<|im_end|>\\n${formattedTurns}\\n<|im_start|>user\\n${userText}<|im_end|>\\n<|im_start|>assistant\\n`;
             }
 
             function cleanGeneratedText(text, prompt) {
@@ -362,7 +392,8 @@ def render_local_copilot(height=600, compact=False):
                     .replaceAll('<|im_end|>', '')
                     .replaceAll('<|endoftext|>', '')
                     .replace(/^assistant\\s*/i, '')
-                    .replace(/^#{1,6}\s*/gm, '')
+                    .replace(/^#{1,6}\\s*/gm, '')
+                    .replace(/\\*\\*/g, '')
                     .trim();
             }
 
@@ -421,8 +452,11 @@ def render_local_copilot(height=600, compact=False):
                 );
 
                 try {
+                    const groundedCircuitAnswer = answerCircuitVisibilityQuestion(text);
                     const generatedText = modelFailed
                         ? buildFallbackResponse(text)
+                        : groundedCircuitAnswer
+                            ? groundedCircuitAnswer
                         : await generateWithLocalModel(text);
 
                     responseDiv.textContent = generatedText;
@@ -469,6 +503,7 @@ def render_local_copilot(height=600, compact=False):
         "__ACE_TRANSFORMERS_CDN__": ACE_TRANSFORMERS_CDN,
         "__ACE_MODEL_ID_JSON__": json.dumps(ACE_MODEL_ID),
         "__ACE_SYSTEM_PROMPT_JSON__": json.dumps(ACE_SYSTEM_PROMPT),
+        "__ACE_LAB_CONTEXT_JSON__": json.dumps(lab_context),
         "__ACE_LOADED_LABEL_JSON__": json.dumps(ACE_LOADED_LABEL),
         "__ACE_LOADING_LABEL_JSON__": json.dumps(ACE_LOADING_LABEL),
         "__ACE_FALLBACK_LABEL_JSON__": json.dumps(ACE_FALLBACK_LABEL),
