@@ -642,12 +642,6 @@ def render_composer():
 
 # ── Chat Tab ──
 
-def render_chat():
-    st.markdown("## A.C.E. Copilot Console")
-    st.caption("A.C.E. now lives in the sidebar so it can stay with you across the lab.")
-    st.info("Use the sidebar copilot for offline quantum help while you build, learn, and run experiments.")
-
-
 def render_offline_code_explanation(code: str):
     lines = [line.strip() for line in code.splitlines() if line.strip()]
     observations = []
@@ -778,27 +772,6 @@ def render_cognitive_core_sidebar():
     st.sidebar.markdown("### A.C.E. Offline")
     with st.sidebar:
         render_local_copilot(height=430, compact=True)
-    
-    #THIS MESSES UP THE SIDEBAR, REMOVED FOR NOW, KEPT THE CODE JUST IN CASE 
-    '''st.sidebar.markdown("### 🎛️ Reality Settings")
-    
-    eli5_col, eli5_info = st.sidebar.columns([3, 1])
-    with eli5_col:
-        eli5_mode = st.toggle("🧒 ELI5 Mode", value=st.session_state.get("eli5_mode", False))
-        if eli5_mode != st.session_state.get("eli5_mode"):
-            st.session_state["eli5_mode"] = eli5_mode
-            st.rerun()
-    with eli5_info:
-        st.info("Explain Like I'm 5 (No Math!)", icon="💡")
-
-    noise_col, noise_info = st.sidebar.columns([3, 1])
-    with noise_col:
-        noisy_simulation = st.toggle("🌩️ Hardware Noise", value=st.session_state.get("noisy_simulation", False))
-        if noisy_simulation != st.session_state.get("noisy_simulation"):
-            st.session_state["noisy_simulation"] = noisy_simulation
-            st.rerun()
-    with noise_info:
-        st.warning("Simulate real-world quantum decoherence", icon="⚠️")'''
 
 
 # ── Main ──
@@ -811,7 +784,7 @@ render_cognitive_core_sidebar()
 
 render_quantum_field()
 
-tab_learn, tab_compose, tab_quests, tab_chat, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🎯 Quests", "💬 A.C.E. Chat", "🧪 Sandbox"])
+tab_learn, tab_compose, tab_quests, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🎯 Quests", "🧪 Sandbox"])
 
 with tab_learn:
     render_curriculum()
@@ -822,9 +795,6 @@ with tab_compose:
 with tab_quests:
     q_engine = build_engine()
     render_quest_tab(q_engine)
-
-with tab_chat:
-    render_chat()
 
 with tab_sandbox:
     render_sandbox()

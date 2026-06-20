@@ -15,15 +15,18 @@ ACE_FALLBACK_LABEL = "FALLBACK"
 ACE_INPUT_PLACEHOLDER = "Ask about gates, Qiskit, or circuits..."
 ACE_WELCOME_MESSAGE = (
     "Greetings Explorer. I am A.C.E., a local language model copilot. "
-    "Your first message may take a moment while the browser loads the model weights."
+    "Your first message may take a moment while the browser loads the model's offline files."
 )
 ACE_SYSTEM_PROMPT = """You are A.C.E. (Advanced Copilot Engine), a helpful local AI tutor inside a Qiskit learning lab.
 Explain quantum computing clearly, physically, and concisely.
 Use short Qiskit examples when helpful.
 Address the learner as Explorer.
-If you are uncertain, say what to test in the lab rather than pretending."""
+If you are uncertain, say what to test in the lab rather than pretending.
+Ensure you offer code examples when the user asks about specific gates, circuits, or Qiskit functions.
+Furthermore, do not include any '#'s in your responses, and keep the formatting clean and simple, but include symbols as needed.
+Ensure that you do not exceed ~175 words, or 250 tokens, in your reponse. Never leave reponses incomplete."""
 ACE_GENERATION_SETTINGS = {
-    "max_new_tokens": 140,
+    "max_new_tokens": 250,
     "temperature": 0.55,
     "top_p": 0.9,
     "repetition_penalty": 1.12,
@@ -40,7 +43,7 @@ def render_local_copilot(height=600, compact=False):
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>A.C.E. Offline Copilot</title>
+        <title>A.C.E.</title>
         <style>
             :root {
                 --bg: #050a15;
@@ -108,7 +111,7 @@ def render_local_copilot(height=600, compact=False):
                 max-width: 85%;
                 padding: 10px 14px;
                 border-radius: 8px;
-                font-size: 14px;
+                font-size: 18px;
                 line-height: 1.5;
             }
             .msg-user {
@@ -359,6 +362,7 @@ def render_local_copilot(height=600, compact=False):
                     .replaceAll('<|im_end|>', '')
                     .replaceAll('<|endoftext|>', '')
                     .replace(/^assistant\\s*/i, '')
+                    .replace(/^#{1,6}\s*/gm, '')
                     .trim();
             }
 
