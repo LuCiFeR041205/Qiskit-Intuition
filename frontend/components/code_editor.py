@@ -4,8 +4,10 @@ import streamlit.components.v1 as components
 
 PRESET_EXPERIMENTS = {
     "Bell State": {
-        "description": "Create an entangled pair — the foundation of quantum information.",
-        "code": """from qiskit import QuantumCircuit
+        "description": "Create an entangled pair of qubits - the foundation of Quantum Information, testing, and theoritical studies.",
+        "code": 
+"""
+from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 
 qc = QuantumCircuit(2)
@@ -19,10 +21,12 @@ print()
 print(qc)
 fig = qc.draw(output='mpl')
 """,
-    },
+                }, 
     "GHZ State": {
         "description": "Three-qubit entanglement — if one collapses, all three agree.",
-        "code": """from qiskit import QuantumCircuit
+        "code": 
+"""
+from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 
 qc = QuantumCircuit(3)
@@ -37,10 +41,12 @@ print()
 print(qc)
 fig = qc.draw(output='mpl')
 """,
-    },
+                    },
     "Teleportation": {
         "description": "Transfer a quantum state using entanglement and classical bits.",
-        "code": """from qiskit import QuantumCircuit
+        "code": 
+"""
+from qiskit import QuantumCircuit
 
 qc = QuantumCircuit(3, 2)
 
@@ -78,10 +84,12 @@ print()
 print(qc)
 fig = qc.draw(output='mpl')
 """,
-    },
+                    },
     "Grover 2-bit": {
         "description": "Search for |11⟩ among 4 possibilities — quantum speedup in action.",
-        "code": """from qiskit import QuantumCircuit
+        "code": 
+"""
+from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 
 qc = QuantumCircuit(2)
@@ -108,10 +116,12 @@ print()
 print(qc)
 fig = qc.draw(output='mpl')
 """,
-    },
+                },
     "Random Walk": {
-        "description": "Quantum walk on 3 qubits — interference shapes the probability landscape.",
-        "code": """from qiskit import QuantumCircuit
+        "description": "Quantum walk on 3 qubits — interference, entanglement, and superposition all in one experiment.",
+        "code": 
+"""
+from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 
 qc = QuantumCircuit(3)
@@ -134,7 +144,7 @@ print()
 print(qc)
 fig = qc.draw(output='mpl')
 """,
-    },
+        },
 }
 
 

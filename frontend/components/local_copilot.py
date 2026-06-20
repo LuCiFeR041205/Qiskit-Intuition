@@ -1,9 +1,39 @@
+import json
+
 import streamlit.components.v1 as components
+
+
+# ── Easy Edit Zone ──
+# Tweak these values when you want to contribute to A.C.E.'s model, tone, or UI copy.
+ACE_MODEL_ID = "onnx-community/Qwen2.5-0.5B-Instruct"
+ACE_TRANSFORMERS_CDN = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0"
+ACE_HEADER_TITLE = "A.C.E. LOCAL LLM"
+ACE_READY_LABEL = "MODEL READY"
+ACE_LOADED_LABEL = "LOCAL LLM READY"
+ACE_LOADING_LABEL = "LOADING MODEL"
+ACE_FALLBACK_LABEL = "FALLBACK"
+ACE_INPUT_PLACEHOLDER = "Ask about gates, Qiskit, or circuits..."
+ACE_WELCOME_MESSAGE = (
+    "Greetings Explorer. I am A.C.E., a local language model copilot. "
+    "Your first message may take a moment while the browser loads the model weights."
+)
+ACE_SYSTEM_PROMPT = """You are A.C.E. (Advanced Copilot Engine), a helpful local AI tutor inside a Qiskit learning lab.
+Explain quantum computing clearly, physically, and concisely.
+Use short Qiskit examples when helpful.
+Address the learner as Explorer.
+If you are uncertain, say what to test in the lab rather than pretending."""
+ACE_GENERATION_SETTINGS = {
+    "max_new_tokens": 140,
+    "temperature": 0.55,
+    "top_p": 0.9,
+    "repetition_penalty": 1.12,
+}
+
 
 def render_local_copilot(height=600, compact=False):
     """
     Renders an offline AI Copilot directly in the browser.
-    No API keys required. Uses local intent rules so it stays reliable on Spaces.
+    No API keys required. Loads a quantized local model in WebGPU-capable browsers.
     """
     html_code = """
     <!DOCTYPE html>
@@ -208,35 +238,51 @@ def render_local_copilot(height=600, compact=False):
     <body class="__COMPACT_CLASS__">
         <div class="copilot-container">
             <div class="header">
-                <div>A.C.E. LOCAL</div>
-                <div class="status-indicator" id="status-badge">LOCAL READY</div>
+                <div>__ACE_HEADER_TITLE__</div>
+                <div class="status-indicator" id="status-badge">__ACE_READY_LABEL__</div>
             </div>
             <div class="progress-container" id="progress-container">
-                <div class="progress-text" id="progress-text">Downloading WebGPU weights (one-time)...</div>
+                <div class="progress-text" id="progress-text">Model loads on first message.</div>
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill" id="progress-bar"></div>
                 </div>
             </div>
             <div class="chat-history" id="chat">
-                <div class="message msg-ai">Greetings Explorer. I am A.C.E., running locally with no external account. Ask about gates, superposition, entanglement, measurement, Qiskit code, or what to try next.</div>
+                <div class="message msg-ai">__ACE_WELCOME_MESSAGE__</div>
             </div>
             <div class="input-area">
-                <input type="text" id="user-input" placeholder="Ask about gates, Qiskit, or circuits...">
+                <input type="text" id="user-input" placeholder="__ACE_INPUT_PLACEHOLDER__">
                 <button id="send-btn">SEND</button>
             </div>
         </div>
 
-        <script>
+        <script type="module">
+            import { pipeline } from "__ACE_TRANSFORMERS_CDN__";
+
+            // Contributor knobs copied from the Python Easy Edit Zone above.
+            const MODEL_ID = __ACE_MODEL_ID_JSON__;
+            const SYSTEM_PROMPT = __ACE_SYSTEM_PROMPT_JSON__;
+            const READY_LABEL = __ACE_LOADED_LABEL_JSON__;
+            const LOADING_LABEL = __ACE_LOADING_LABEL_JSON__;
+            const FALLBACK_LABEL = __ACE_FALLBACK_LABEL_JSON__;
+            const GENERATION_SETTINGS = {
+                max_new_tokens: __ACE_MAX_NEW_TOKENS__,
+                temperature: __ACE_TEMPERATURE__,
+                top_p: __ACE_TOP_P__,
+                repetition_penalty: __ACE_REPETITION_PENALTY__,
+            };
+
             const chatDiv = document.getElementById('chat');
             const inputEl = document.getElementById('user-input');
             const sendBtn = document.getElementById('send-btn');
             const statusBadge = document.getElementById('status-badge');
             const progressContainer = document.getElementById('progress-container');
             const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
 
-            let chatHistory = [
-                { role: 'system', content: 'You are A.C.E. (Advanced Copilot Engine), a helpful AI assistant in a quantum computing lab built with Qiskit and Streamlit. You explain quantum concepts concisely and excitedly.' }
-            ];
+            let generatorPromise = null;
+            let modelFailed = false;
+            let chatHistory = [];
 
             function addMessage(role, text) {
                 const msg = document.createElement('div');
@@ -244,34 +290,115 @@ def render_local_copilot(height=600, compact=False):
                 msg.textContent = text;
                 chatDiv.appendChild(msg);
                 chatDiv.scrollTop = chatDiv.scrollHeight;
+                return msg;
             }
 
-            function buildOfflineResponse(text) {
+            function setStatus(text, ready = false) {
+                statusBadge.textContent = text;
+                statusBadge.classList.toggle('ready', ready);
+            }
+
+            function updateProgress(data) {
+                progressContainer.style.display = 'block';
+
+                if (typeof data?.progress === 'number') {
+                    const pct = Math.max(0, Math.min(100, data.progress));
+                    progressBar.style.width = `${pct}%`;
+                    progressText.textContent = `Loading ${data.file || 'model'}: ${pct.toFixed(0)}%`;
+                    return;
+                }
+
+                progressText.textContent = `Loading ${data?.file || data?.status || 'model files'}...`;
+            }
+
+            function buildFallbackResponse(text) {
                 const q = text.toLowerCase();
 
                 if (q.includes('hadamard') || q.includes(' h ') || q.includes('superposition')) {
-                    return 'A Hadamard gate is the classic superposition move: it rotates |0> toward an equal blend of |0> and |1>. In the lab, use H when you want probability to split before interference or entanglement.';
+                    return 'Local model fallback: A Hadamard gate rotates |0> toward an equal blend of |0> and |1>. Use H when you want probability to split before interference or entanglement.';
                 }
                 if (q.includes('cnot') || q.includes('cx') || q.includes('entangle')) {
-                    return 'CNOT is the main entangling tool. The control qubit decides whether the target flips. After H on the control, CNOT can create linked outcomes where the two qubits must be described as one shared state.';
+                    return 'Local model fallback: CNOT is the main entangling tool. The control qubit decides whether the target flips. After H on the control, CNOT can create linked outcomes.';
                 }
                 if (q.includes('measure') || q.includes('measurement') || q.includes('shots')) {
-                    return 'Measurement turns quantum amplitudes into classical counts. A statevector shows the hidden amplitudes before measurement; shots show sampled outcomes after repeated measurement.';
+                    return 'Local model fallback: Measurement turns amplitudes into classical counts. A statevector shows amplitudes before measurement; shots show sampled outcomes after repeated runs.';
                 }
                 if (q.includes('phase') || q.includes('z gate') || q.includes('rz') || q.includes('s gate') || q.includes('t gate')) {
-                    return 'Phase gates usually do not change immediate 0/1 probabilities by themselves. They change relative phase, which matters when later gates make paths interfere.';
+                    return 'Local model fallback: Phase gates usually do not change immediate 0/1 probabilities by themselves. They change relative phase, which matters when later gates create interference.';
                 }
                 if (q.includes('qiskit') || q.includes('code') || q.includes('python')) {
-                    return 'Read Qiskit code as a circuit recipe: import tools, create QuantumCircuit, apply gates in order, then simulate, inspect, or measure. The visual composer and exported code should match line by line.';
+                    return 'Local model fallback: Read Qiskit code as a circuit recipe: import tools, create QuantumCircuit, apply gates in order, then simulate, inspect, or measure.';
                 }
                 if (q.includes('bloch')) {
-                    return 'The Bloch sphere shows a single qubit as a direction. North is |0>, south is |1>, the equator is balanced superposition, and rotation around the vertical axis changes phase.';
+                    return 'Local model fallback: The Bloch sphere shows a single qubit as a direction. North is |0>, south is |1>, the equator is balanced superposition, and rotation around the vertical axis changes phase.';
                 }
                 if (q.includes('what should i do') || q.includes('next') || q.includes('practice')) {
-                    return 'Try this: add H to q0, then CNOT from q0 to q1, then inspect probabilities. Before running it, predict which basis states should appear and which should vanish.';
+                    return 'Local model fallback: Try H on q0, then CNOT from q0 to q1, then inspect probabilities. Before running it, predict which basis states should appear.';
                 }
 
-                return 'Offline A.C.E. can help with the core lab ideas: gates rotate qubits, phase controls interference, CNOT links qubits, and measurement turns the state into classical results. Ask me about a specific gate, circuit, or Qiskit line.';
+                return 'The local model could not load in this browser, so I am using a small fallback. Ask about a specific gate, circuit, or Qiskit line for the best offline help.';
+            }
+
+            function buildPrompt(userText) {
+                const recentTurns = chatHistory.slice(-6);
+                const formattedTurns = recentTurns
+                    .map((msg) => `<|im_start|>${msg.role}\\n${msg.content}<|im_end|>`)
+                    .join('\\n');
+
+                return `<|im_start|>system\\n${SYSTEM_PROMPT}<|im_end|>\\n${formattedTurns}\\n<|im_start|>user\\n${userText}<|im_end|>\\n<|im_start|>assistant\\n`;
+            }
+
+            function cleanGeneratedText(text, prompt) {
+                let cleaned = String(text || '');
+
+                if (cleaned.startsWith(prompt)) {
+                    cleaned = cleaned.slice(prompt.length);
+                }
+
+                return cleaned
+                    .replaceAll('<|im_end|>', '')
+                    .replaceAll('<|endoftext|>', '')
+                    .replace(/^assistant\\s*/i, '')
+                    .trim();
+            }
+
+            async function getGenerator() {
+                if (!navigator.gpu) {
+                    throw new Error('WebGPU is not available in this browser.');
+                }
+
+                if (!generatorPromise) {
+                    setStatus(LOADING_LABEL);
+                    progressContainer.style.display = 'block';
+                    progressBar.style.width = '3%';
+                    generatorPromise = pipeline('text-generation', MODEL_ID, {
+                        device: 'webgpu',
+                        dtype: 'q4',
+                        progress_callback: updateProgress,
+                    });
+                }
+
+                const generator = await generatorPromise;
+                setStatus(READY_LABEL, true);
+                progressText.textContent = `${MODEL_ID} loaded locally.`;
+                progressBar.style.width = '100%';
+                return generator;
+            }
+
+            async function generateWithLocalModel(text) {
+                const generator = await getGenerator();
+                const prompt = buildPrompt(text);
+                const output = await generator(prompt, {
+                    ...GENERATION_SETTINGS,
+                    do_sample: true,
+                    return_full_text: false,
+                });
+
+                const generatedText = Array.isArray(output)
+                    ? output[0]?.generated_text
+                    : output?.generated_text;
+
+                return cleanGeneratedText(generatedText, prompt) || buildFallbackResponse(text);
             }
 
             async function handleSend() {
@@ -283,23 +410,36 @@ def render_local_copilot(height=600, compact=False):
                 sendBtn.disabled = true;
                 
                 addMessage('user', text);
-                chatHistory.push({ role: 'user', content: text });
 
-                // Create a placeholder for AI response
-                const responseDiv = document.createElement('div');
-                responseDiv.className = 'message msg-ai';
-                responseDiv.textContent = 'Thinking...';
-                chatDiv.appendChild(responseDiv);
-                chatDiv.scrollTop = chatDiv.scrollHeight;
+                const responseDiv = addMessage(
+                    'assistant',
+                    modelFailed ? 'Thinking with fallback...' : 'Loading local model...'
+                );
 
-                window.setTimeout(() => {
-                    const generatedText = buildOfflineResponse(text);
+                try {
+                    const generatedText = modelFailed
+                        ? buildFallbackResponse(text)
+                        : await generateWithLocalModel(text);
+
                     responseDiv.textContent = generatedText;
+                    chatHistory.push({ role: 'user', content: text });
                     chatHistory.push({ role: 'assistant', content: generatedText });
+                } catch (error) {
+                    console.warn('Local model unavailable, using fallback:', error);
+                    modelFailed = true;
+                    setStatus(FALLBACK_LABEL);
+                    progressText.textContent = 'WebGPU model unavailable in this browser. Using offline fallback.';
+                    progressBar.style.width = '0%';
+
+                    const fallbackText = buildFallbackResponse(text);
+                    responseDiv.textContent = fallbackText;
+                    chatHistory.push({ role: 'user', content: text });
+                    chatHistory.push({ role: 'assistant', content: fallbackText });
+                } finally {
                     inputEl.disabled = false;
                     sendBtn.disabled = false;
                     inputEl.focus();
-                }, 160);
+                }
             }
 
             sendBtn.addEventListener('click', handleSend);
@@ -307,12 +447,33 @@ def render_local_copilot(height=600, compact=False):
                 if (e.key === 'Enter') handleSend();
             });
 
-            progressContainer.style.display = 'none';
+            progressContainer.style.display = 'block';
+            progressText.textContent = 'Model loads on first message.';
+            progressBar.style.width = '0%';
             statusBadge.classList.add('ready');
             inputEl.focus();
         </script>
     </body>
     </html>
     """
-    html_code = html_code.replace("__COMPACT_CLASS__", "compact" if compact else "")
+    replacements = {
+        "__COMPACT_CLASS__": "compact" if compact else "",
+        "__ACE_HEADER_TITLE__": ACE_HEADER_TITLE,
+        "__ACE_READY_LABEL__": ACE_READY_LABEL,
+        "__ACE_WELCOME_MESSAGE__": ACE_WELCOME_MESSAGE,
+        "__ACE_INPUT_PLACEHOLDER__": ACE_INPUT_PLACEHOLDER,
+        "__ACE_TRANSFORMERS_CDN__": ACE_TRANSFORMERS_CDN,
+        "__ACE_MODEL_ID_JSON__": json.dumps(ACE_MODEL_ID),
+        "__ACE_SYSTEM_PROMPT_JSON__": json.dumps(ACE_SYSTEM_PROMPT),
+        "__ACE_LOADED_LABEL_JSON__": json.dumps(ACE_LOADED_LABEL),
+        "__ACE_LOADING_LABEL_JSON__": json.dumps(ACE_LOADING_LABEL),
+        "__ACE_FALLBACK_LABEL_JSON__": json.dumps(ACE_FALLBACK_LABEL),
+        "__ACE_MAX_NEW_TOKENS__": str(ACE_GENERATION_SETTINGS["max_new_tokens"]),
+        "__ACE_TEMPERATURE__": str(ACE_GENERATION_SETTINGS["temperature"]),
+        "__ACE_TOP_P__": str(ACE_GENERATION_SETTINGS["top_p"]),
+        "__ACE_REPETITION_PENALTY__": str(ACE_GENERATION_SETTINGS["repetition_penalty"]),
+    }
+    for placeholder, value in replacements.items():
+        html_code = html_code.replace(placeholder, value)
+
     components.html(html_code, height=height, scrolling=compact)
