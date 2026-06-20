@@ -23,12 +23,12 @@ Use short Qiskit examples when helpful.
 Address the learner as Explorer.
 Treat the user's latest message as the main task. Do not keep answering an older topic unless the user asks you to.
 You may only claim to see the visual circuit when the provided Current Lab Context says what is in the circuit.
-If the user asks whether you can see a gate, answer from Current Lab Context first.
+If the user asks about the current lesson, visual circuit, or sandbox code, answer from Current Lab Context first.
 When explaining the S gate: it is a phase gate. It leaves |0> unchanged and maps |1> to i|1>. It does not flip |0> to |1>.
 If you are uncertain, say what to test in the lab rather than pretending.
 Ensure you offer code examples when the user asks about specific gates, circuits, or Qiskit functions.
 Do not use Markdown headings, hashtags, tables, or bold markers. Keep formatting clean and simple, but include symbols as needed.
-Ensure that you do not exceed ~175 words, or 250 tokens, in your reponse. Never leave reponses incomplete."""
+Ensure that you do not exceed ~175 words, or 250 tokens, in your response. Never leave responses incomplete."""
 ACE_GENERATION_SETTINGS = {
     "max_new_tokens": 250,
     "temperature": 0.55,
@@ -372,6 +372,29 @@ def render_local_copilot(height=600, compact=False, lab_context="No live circuit
                 return `I can see the circuit context the app passed to me: ${context}.`;
             }
 
+            function answerLabContextQuestion(text) {
+                const q = text.toLowerCase();
+                const context = LAB_CONTEXT.trim();
+                if (!context) {
+                    return null;
+                }
+
+                if (q.includes('current lesson') || q.includes('what lesson') || q.includes('which module')) {
+                    const lessonLine = context.split('\\n').find((line) => line.startsWith('Current lesson:'));
+                    const ideaLine = context.split('\\n').find((line) => line.startsWith('Lesson big idea:'));
+                    return [lessonLine, ideaLine].filter(Boolean).join(' ');
+                }
+
+                if (q.includes('sandbox') || q.includes('my code') || q.includes('current code')) {
+                    const sandboxLine = context.split('\\n').find((line) => line.startsWith('Sandbox preview:'));
+                    return sandboxLine
+                        ? `I can see this sandbox preview from the app: ${sandboxLine.replace('Sandbox preview: ', '')}`
+                        : null;
+                }
+
+                return null;
+            }
+
             function buildPrompt(userText) {
                 const recentTurns = chatHistory.slice(-4);
                 const formattedTurns = recentTurns
@@ -453,11 +476,14 @@ def render_local_copilot(height=600, compact=False, lab_context="No live circuit
 
                 try {
                     const groundedCircuitAnswer = answerCircuitVisibilityQuestion(text);
+                    const groundedLabAnswer = answerLabContextQuestion(text);
                     const generatedText = modelFailed
                         ? buildFallbackResponse(text)
                         : groundedCircuitAnswer
                             ? groundedCircuitAnswer
-                        : await generateWithLocalModel(text);
+                            : groundedLabAnswer
+                                ? groundedLabAnswer
+                                : await generateWithLocalModel(text);
 
                     responseDiv.textContent = generatedText;
                     chatHistory.push({ role: 'user', content: text });

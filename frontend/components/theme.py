@@ -22,8 +22,8 @@ def inject_theme():
         --panel-2: rgba(17, 37, 42, 0.72);
         --line: rgba(111, 225, 205, 0.26);
         --line-strong: rgba(111, 225, 205, 0.52);
-        --text: #ffffff; /* Increased contrast from e9fff9 */
-        --muted: #a6d0c6; /* Increased contrast from 8db8b0 */
+        --text: #ffffff;
+        --muted: #a6d0c6;
         --cyan: #65f4d4;
         --gold: #f6c85f;
         --rose: #ff6f91;

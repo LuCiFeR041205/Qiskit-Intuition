@@ -257,6 +257,31 @@ def get_composer_context():
     return f"Visual circuit: {st.session_state.num_qubits} qubits. Gates: " + "; ".join(sequence)
 
 
+def get_lab_context():
+    levels = list(CURRICULUM.keys())
+    selected_level = st.session_state.get("selected_level", levels[0])
+    if selected_level not in CURRICULUM:
+        selected_level = levels[0]
+
+    modules = list(CURRICULUM[selected_level].keys())
+    selected_module = st.session_state.get("selected_module", modules[0])
+    if selected_module not in CURRICULUM[selected_level]:
+        selected_module = modules[0]
+
+    lesson = CURRICULUM[selected_level][selected_module]
+    sandbox_lines = [line.strip() for line in st.session_state.sandbox_code.splitlines() if line.strip()]
+    sandbox_preview = " ".join(sandbox_lines[:4]) if sandbox_lines else "No sandbox code."
+
+    return "\n".join(
+        [
+            f"Current lesson: {selected_level} / {selected_module}.",
+            f"Lesson big idea: {lesson.get('big_idea', 'No lesson selected.')}",
+            get_composer_context(),
+            f"Sandbox preview: {sandbox_preview[:420]}",
+        ]
+    )
+
+
 # ── Gate Palette ──
 
 def render_gate_palette():
@@ -520,8 +545,11 @@ def render_interactive_code_challenge(module, lesson):
 def render_curriculum():
     st.sidebar.header("Learning Path")
     levels = list(CURRICULUM.keys())
-    level = st.sidebar.selectbox("Level", levels)
-    module = st.sidebar.radio("Module", list(CURRICULUM[level].keys()))
+    level = st.sidebar.selectbox("Level", levels, key="selected_level")
+    module_options = list(CURRICULUM[level].keys())
+    if st.session_state.get("selected_module") not in module_options:
+        st.session_state.selected_module = module_options[0]
+    module = st.sidebar.radio("Module", module_options, key="selected_module")
     lesson = CURRICULUM[level][module]
 
     render_learning_roadmap()
@@ -752,7 +780,7 @@ def render_sandbox():
             st.code(result["error"], language="python")
 
         if result["stdout"]:
-            st.markdown("#### stdout")
+            st.markdown("#### Output")
             st.code(result["stdout"])
         if result["stderr"]:
             st.markdown("#### stderr")
@@ -797,7 +825,7 @@ def render_cognitive_core_sidebar():
     st.sidebar.divider()
     st.sidebar.markdown("### A.C.E. Offline")
     with st.sidebar:
-        render_local_copilot(height=430, compact=True, lab_context=get_composer_context())
+        render_local_copilot(height=430, compact=True, lab_context=get_lab_context())
 
 
 # ── Main ──
