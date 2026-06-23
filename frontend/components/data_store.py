@@ -51,6 +51,69 @@ GATE_LIBRARY = {
     },
 }
 
+EDUCATIONAL_FOUNDATIONS = {
+    "Level 0: Python + Qiskit Setup": {
+        "summary": "Start with the code objects learners will touch every time: circuits, qubits, gates, and output.",
+        "materials": [
+            "A circuit is a recipe, not the quantum state itself.",
+            "Qubits are indexed from zero, so q0 is the first qubit.",
+            "Gates are appended in order, left to right in the circuit diagram.",
+            "Drawing, printing, and exporting circuits are part of the learning loop.",
+        ],
+        "try_this": "Create one qubit, add H, print the circuit, then explain each line aloud.",
+    },
+    "Level 1: Quantum Foundations": {
+        "summary": "Build physical intuition before algorithms: state, phase, measurement, and entanglement.",
+        "materials": [
+            "A qubit state can be pictured as a direction on the Bloch sphere.",
+            "Superposition changes measurement probabilities only when the state is away from the poles.",
+            "Phase can be invisible in raw counts until later gates create interference.",
+            "Entanglement means the shared system has structure that individual qubits cannot fully show.",
+        ],
+        "try_this": "Compare H, Z, and H-Z-H on q0. Watch when phase becomes measurable.",
+    },
+    "Level 2: Circuit Composer Skills": {
+        "summary": "Learn how circuits behave as ordered transformations, not loose collections of gates.",
+        "materials": [
+            "Gate order matters because rotations around different axes usually do not commute.",
+            "Parameterized rotations let circuits move continuously instead of jumping between fixed gates.",
+            "Controlled gates can create correlations and can move phase information through a circuit.",
+            "Small circuit identities help learners debug larger algorithms later.",
+        ],
+        "try_this": "Build H then Z, reset, then build Z then H. Compare the Bloch vector and probabilities.",
+    },
+    "Level 3: Simulation + Noise": {
+        "summary": "Separate ideal math from sampled experiments and noisy hardware behavior.",
+        "materials": [
+            "A statevector is exact simulation data before measurement sampling.",
+            "Shots are repeated measurements, so counts fluctuate statistically.",
+            "Noise turns clean probability patterns into imperfect distributions.",
+            "Transpilation rewrites a circuit so hardware can actually run it.",
+        ],
+        "try_this": "Run the same H circuit with different shot counts and compare how stable the counts become.",
+    },
+    "Level 4: Quantum Algorithms": {
+        "summary": "Connect gates to algorithm patterns: marking, interference, phase, and optimization.",
+        "materials": [
+            "Grover search marks a target with phase, then amplifies it with interference.",
+            "QFT stores periodic structure in relative phase patterns.",
+            "VQE uses a parameterized circuit plus a classical optimizer.",
+            "Algorithms are built from small physical effects repeated with intent.",
+        ],
+        "try_this": "Run the Grover preset, then identify which gates mark the answer and which amplify it.",
+    },
+    "Level 5: Hardware + Advanced Workflows": {
+        "summary": "Prepare learners for real backends, runtime primitives, and error-aware workflows.",
+        "materials": [
+            "Sampler-style workflows are for outcome distributions.",
+            "Estimator-style workflows are for expectation values and observables.",
+            "Error mitigation improves estimates but does not fully correct quantum states.",
+            "Hardware execution requires backend choice, transpilation, job submission, and result analysis.",
+        ],
+        "try_this": "Take a composer circuit, export it, and list what would need to change before hardware execution.",
+    },
+}
+
 CURRICULUM = {
     "Level 0: Python + Qiskit Setup": {
         "Python for Circuits": {

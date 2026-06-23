@@ -15,8 +15,9 @@ ACE_FALLBACK_LABEL = "FALLBACK"
 ACE_INPUT_PLACEHOLDER = "Ask about gates, Qiskit, or circuits..."
 ACE_WELCOME_MESSAGE = (
     "Greetings Explorer. I am A.C.E., a local language model copilot. "
-    "Your first message may take a moment while the browser loads the model's offline files."
+    "I can use the current lesson, visual circuit, and sandbox preview without any API key."
 )
+
 ACE_SYSTEM_PROMPT = """You are A.C.E. (Advanced Copilot Engine), a helpful local AI tutor inside a Qiskit learning lab.
 Explain quantum computing clearly, physically, and concisely.
 Use short Qiskit examples when helpful.
@@ -28,12 +29,14 @@ When explaining the S gate: it is a phase gate. It leaves |0> unchanged and maps
 If you are uncertain, say what to test in the lab rather than pretending.
 Ensure you offer code examples when the user asks about specific gates, circuits, or Qiskit functions.
 Do not use Markdown headings, hashtags, tables, or bold markers. Keep formatting clean and simple, but include symbols as needed.
-Ensure that you do not exceed ~175 words, or 250 tokens, in your response. Never leave responses incomplete."""
+Use plain state notation like |0>, |1>, |+>, and i|1>. Avoid LaTeX commands.
+Answer in 2-5 short paragraphs or bullets. Finish every response with one useful next action when appropriate."""
+
 ACE_GENERATION_SETTINGS = {
-    "max_new_tokens": 250,
-    "temperature": 0.55,
-    "top_p": 0.9,
-    "repetition_penalty": 1.12,
+    "max_new_tokens": 320,
+    "temperature": 0.35,
+    "top_p": 0.85,
+    "repetition_penalty": 1.25,
 }
 
 
@@ -153,9 +156,9 @@ def render_local_copilot(height=600, compact=False, lab_context="No live circuit
                 box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
             }
             button {
-                background: var(--cyan);
-                color: #000;
-                border: none;
+                background: #050a15;
+                color: var(--text);
+                border: 1px solid rgba(101, 244, 212, 0.5);
                 padding: 0 20px;
                 border-radius: 6px;
                 font-weight: bold;
@@ -163,6 +166,7 @@ def render_local_copilot(height=600, compact=False, lab_context="No live circuit
                 transition: 0.2s;
             }
             button:hover {
+                background: rgba(0, 240, 255, 0.14);
                 box-shadow: 0 0 15px var(--cyan);
                 transform: scale(1.02);
             }
@@ -323,28 +327,58 @@ def render_local_copilot(height=600, compact=False, lab_context="No live circuit
                 const q = text.toLowerCase();
 
                 if (q.includes('hadamard') || q.includes(' h ') || q.includes('superposition')) {
-                    return 'Local model fallback: A Hadamard gate rotates |0> toward an equal blend of |0> and |1>. Use H when you want probability to split before interference or entanglement.';
+                    return 'A Hadamard gate is the standard superposition move. From |0>, it creates |+>, an even blend of |0> and |1>. Use H when you want probability to split before interference or before a CNOT can create entanglement.';
                 }
                 if (q.includes('cnot') || q.includes('cx') || q.includes('entangle')) {
-                    return 'Local model fallback: CNOT is the main entangling tool. The control qubit decides whether the target flips. After H on the control, CNOT can create linked outcomes.';
+                    return 'CNOT is the main two-qubit linking gate. The control qubit decides whether the target flips. If the control is already in superposition, CNOT can create correlated outcomes such as 00 and 11.';
                 }
                 if (q.includes('measure') || q.includes('measurement') || q.includes('shots')) {
-                    return 'Local model fallback: Measurement turns amplitudes into classical counts. A statevector shows amplitudes before measurement; shots show sampled outcomes after repeated runs.';
+                    return 'Measurement turns amplitudes into classical results. A statevector shows the exact pre-measurement quantum state; shots show repeated sampled outcomes, so the counts can wobble even when the underlying probabilities are clean.';
                 }
                 if (q.includes('phase') || q.includes('z gate') || q.includes('rz') || q.includes('s gate') || q.includes('t gate')) {
-                    return 'Local model fallback: Phase gates usually do not change immediate 0/1 probabilities by themselves. They change relative phase, which matters when later gates create interference.';
+                    return 'Phase gates usually do not change immediate 0/1 probabilities by themselves. They change relative phase. The S gate leaves |0> unchanged and maps |1> to i|1>; later gates like H can turn that hidden phase into visible interference.';
                 }
                 if (q.includes('qiskit') || q.includes('code') || q.includes('python')) {
-                    return 'Local model fallback: Read Qiskit code as a circuit recipe: import tools, create QuantumCircuit, apply gates in order, then simulate, inspect, or measure.';
+                    return 'Qiskit is a Python toolkit for building quantum circuits. Read Qiskit code as a circuit recipe: import tools, create a QuantumCircuit, apply gates in order, then simulate, inspect the state, or measure.';
                 }
                 if (q.includes('bloch')) {
-                    return 'Local model fallback: The Bloch sphere shows a single qubit as a direction. North is |0>, south is |1>, the equator is balanced superposition, and rotation around the vertical axis changes phase.';
+                    return 'The Bloch sphere shows one qubit as a direction. North is |0>, south is |1>, the equator is balanced superposition, and rotation around the vertical axis changes phase without immediately changing 0/1 odds.';
                 }
                 if (q.includes('what should i do') || q.includes('next') || q.includes('practice')) {
-                    return 'Local model fallback: Try H on q0, then CNOT from q0 to q1, then inspect probabilities. Before running it, predict which basis states should appear.';
+                    return 'A good next experiment is: add H on q0, add CNOT from q0 to q1, then inspect probabilities. Before running it, predict which basis states should appear and why.';
                 }
 
-                return 'The local model could not load in this browser, so I am using a small fallback. Ask about a specific gate, circuit, or Qiskit line for the best offline help.';
+                return 'I can still help offline. Ask about a specific gate, circuit, lesson, or Qiskit line and I will ground the answer in the current lab context.';
+            }
+
+            function answerKnownTutorQuestion(text) {
+                const q = text.toLowerCase();
+
+                if (q.includes('what is qiskit') || q === 'qiskit' || q.includes('explain qiskit')) {
+                    return 'Qiskit is an open-source Python toolkit for building and studying quantum circuits. In this lab, think of a QuantumCircuit as the recipe, gates as physical instructions placed on qubits, and simulators as the oven that lets you inspect the result. Try this next: build H on q0 in the Composer, then compare the exported Qiskit code with the visual gate.';
+                }
+
+                if (q.includes('what is a qubit') || q.includes('explain qubit')) {
+                    return 'A qubit is a two-level quantum system. Unlike a classical bit, it can point anywhere on the Bloch sphere before measurement. The north pole is |0>, the south pole is |1>, and the equator represents balanced superpositions. Try this next: move the Bloch sliders and predict how theta changes measurement odds.';
+                }
+
+                if (q.includes('superposition')) {
+                    return 'Superposition means the qubit state is not pinned to only |0> or only |1>. It has amplitudes for possible measurement outcomes. The key point is that those amplitudes can interfere later, so superposition is not just classical uncertainty. Try this next: apply H to |0>, then apply H again and watch it return to |0>.';
+                }
+
+                if (q.includes('entanglement') || q.includes('entangled')) {
+                    return 'Entanglement is shared quantum state. The pair can have a clean structure even when each individual qubit no longer has a pure Bloch vector. A common recipe is H on q0, then CNOT q0 -> q1, creating correlated outcomes. Try this next: build that circuit and look for 00 and 11 probabilities.';
+                }
+
+                if (q.includes('s gate')) {
+                    return 'The S gate is a phase gate, not a flip. It leaves |0> unchanged and maps |1> to i|1>. By itself it usually does not change measurement odds, but it changes interference when a later gate like H mixes phase back into probability. Try this next: compare H-S-H with just H.';
+                }
+
+                if (q.includes('why') && (q.includes('probability') || q.includes('counts'))) {
+                    return 'Probabilities come from amplitudes, while counts come from repeated samples. A perfect 50/50 state will not always produce perfectly equal counts because sampling has randomness. Try this next: run the same circuit with more shots and watch the distribution stabilize.';
+                }
+
+                return null;
             }
 
             function answerCircuitVisibilityQuestion(text) {
@@ -477,13 +511,16 @@ def render_local_copilot(height=600, compact=False, lab_context="No live circuit
                 try {
                     const groundedCircuitAnswer = answerCircuitVisibilityQuestion(text);
                     const groundedLabAnswer = answerLabContextQuestion(text);
+                    const knownTutorAnswer = answerKnownTutorQuestion(text);
                     const generatedText = modelFailed
                         ? buildFallbackResponse(text)
                         : groundedCircuitAnswer
                             ? groundedCircuitAnswer
                             : groundedLabAnswer
                                 ? groundedLabAnswer
-                                : await generateWithLocalModel(text);
+                                : knownTutorAnswer
+                                    ? knownTutorAnswer
+                                    : await generateWithLocalModel(text);
 
                     responseDiv.textContent = generatedText;
                     chatHistory.push({ role: 'user', content: text });

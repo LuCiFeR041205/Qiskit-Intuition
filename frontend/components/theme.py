@@ -62,7 +62,20 @@ def inject_theme():
     [data-testid="stHeader"] {
         background: transparent;
         padding: 0.5rem 1rem;
-        border-bottom: 1px solid var(--line);}
+        border-bottom: none;}
+
+    /* Hide Streamlit's top-right app chrome, including the theme menu. */
+    [data-testid="stToolbar"],
+    [data-testid="stHeaderActionElements"],
+    [data-testid="stDeployButton"],
+    [data-testid="stMainMenu"],
+    [data-testid="stMainMenuButton"],
+    [data-testid="stBaseButton-header"],
+    button[kind="header"] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
     
 
     [data-testid="stSidebar"] {
@@ -118,6 +131,11 @@ def inject_theme():
     .physics-card strong, .gate-card strong { color: var(--cyan); }
     .physics-card span, .gate-card span { color: var(--muted); font-size: 0.9rem; }
     .gate-card { min-height: 120px; }
+    .compact-card {
+        padding: 10px 12px !important;
+        margin-bottom: 10px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2) !important;
+    }
 
     /* ── Metric strip ── */
     .metric-strip {
@@ -144,6 +162,44 @@ def inject_theme():
         white-space: nowrap;
         font-size: 0.82rem;
         font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Compact learning selector ── */
+    .learning-console {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border: 1px solid rgba(111, 225, 205, 0.34);
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin: 4px 0 10px 0;
+        background:
+            linear-gradient(145deg, rgba(12, 30, 28, 0.92), rgba(15, 18, 31, 0.82));
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+    }
+
+    .learning-console h3 {
+        margin: 2px 0 4px 0 !important;
+        font-size: 1.18rem !important;
+        line-height: 1.15 !important;
+        text-shadow: none !important;
+    }
+
+    .learning-console p {
+        margin: 0 !important;
+        color: var(--muted) !important;
+        font-size: 0.86rem;
+        line-height: 1.35;
+    }
+
+    .console-eyebrow {
+        display: block;
+        color: var(--gold) !important;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        margin-bottom: 2px;
     }
 
     /* ── Roadmap ── */
@@ -174,6 +230,29 @@ def inject_theme():
 
     .roadmap-step strong { color: var(--gold); display: block; font-size: 0.92rem; margin-bottom: 8px; }
     .roadmap-step span { color: var(--muted); font-size: 0.86rem; line-height: 1.45; }
+
+    /* ── Clickable foundation boxes ── */
+    [data-testid="stExpander"] {
+        border: 1px solid rgba(111, 225, 205, 0.34) !important;
+        border-radius: 8px !important;
+        background: linear-gradient(145deg, rgba(14, 33, 31, 0.78), rgba(23, 20, 39, 0.72)) !important;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22), 0 0 14px rgba(101, 244, 212, 0.08);
+        overflow: hidden;
+    }
+
+    [data-testid="stExpander"] summary {
+        color: var(--gold) !important;
+        font-family: 'Space Grotesk', sans-serif !important;
+        font-weight: 700;
+    }
+
+    [data-testid="stExpander"] summary:hover {
+        color: var(--cyan) !important;
+    }
+
+    [data-testid="stExpander"] [data-testid="stMarkdownContainer"] {
+        color: var(--text) !important;
+    }
 
     /* ── Study materials ── */
     .study-access {
@@ -206,28 +285,42 @@ def inject_theme():
     }
 
     /* ── Buttons ── */
-    .stButton > button {
+    .stButton > button,
+    .stButton button,
+    button[kind],
+    [data-testid="baseButton-primary"],
+    [data-testid="baseButton-secondary"] {
         border-radius: 6px;
-        border: 1px solid var(--line-strong);
-        background: rgba(101, 244, 212, 0.08);
-        color: var(--text);
-        min-height: 2.55rem;
+        border: 1px solid var(--line-strong) !important;
+        background: #050a0a !important;
+        color: var(--text) !important;
+        min-height: 2.25rem;
         font-family: 'Space Grotesk', sans-serif;
         font-weight: 500;
+        font-size: 0.88rem;
         transition: all 200ms ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
     }
 
-    .stButton > button:hover {
-        border-color: var(--cyan);
-        background: rgba(101, 244, 212, 0.25);
-        color: #fff;
-        box-shadow: 0 0 20px rgba(101, 244, 212, 0.4);
+    .stButton > button:hover,
+    .stButton button:hover,
+    button[kind]:hover,
+    [data-testid="baseButton-primary"]:hover,
+    [data-testid="baseButton-secondary"]:hover {
+        border-color: var(--cyan) !important;
+        background: rgba(101, 244, 212, 0.16) !important;
+        color: #fff !important;
+        box-shadow: 0 0 20px rgba(101, 244, 212, 0.28) !important;
         transform: scale(1.02);
     }
 
     .stButton > button:disabled,
-    .stButton > button:disabled:hover {
-        background: rgba(8, 14, 20, 0.78) !important;
+    .stButton > button:disabled:hover,
+    .stButton button:disabled,
+    .stButton button:disabled:hover,
+    button[kind]:disabled,
+    button[kind]:disabled:hover {
+        background: #080e14 !important;
         color: rgba(255, 255, 255, 0.48) !important;
         border-color: rgba(111, 225, 205, 0.18) !important;
         box-shadow: none !important;
@@ -268,6 +361,7 @@ def inject_theme():
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
         border-bottom: 1px solid var(--line);
+        margin-bottom: 0.6rem;
     }
 
     .stTabs [data-baseweb="tab"] {
@@ -400,6 +494,7 @@ def inject_theme():
     @media (max-width: 900px) {
         .metric-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .roadmap { grid-template-columns: 1fr; }
+        .learning-console { align-items: flex-start; flex-direction: column; }
     }
 </style>
         """,

@@ -15,7 +15,7 @@ from frontend.components.quantum_field import render_quantum_field
 from frontend.components.circuit_composer import render_circuit_composer
 from frontend.components.code_editor import render_sandbox_header, PRESET_EXPERIMENTS
 from frontend.components.local_copilot import render_local_copilot
-from frontend.components.data_store import GATE_LIBRARY, CURRICULUM
+from frontend.components.data_store import GATE_LIBRARY, CURRICULUM, EDUCATIONAL_FOUNDATIONS
 from frontend.components.theme import inject_theme
 from backend.core.quest_engine import render_quest_tab
 
@@ -276,6 +276,8 @@ def get_lab_context():
         [
             f"Current lesson: {selected_level} / {selected_module}.",
             f"Lesson big idea: {lesson.get('big_idea', 'No lesson selected.')}",
+            f"Lesson checkpoint: {lesson.get('checkpoint', 'No checkpoint selected.')}",
+            f"Lesson practice: {lesson.get('practice', 'No practice selected.')}",
             get_composer_context(),
             f"Sandbox preview: {sandbox_preview[:420]}",
         ]
@@ -415,20 +417,50 @@ def render_state_readout(angles):
 # ── Learning Roadmap ──
 
 def render_learning_roadmap():
-    st.markdown("### Full Qiskit Learning Path")
-    steps = []
-    for level_name, modules in CURRICULUM.items():
-        module_list = ", ".join(modules.keys())
-        steps.append(
-            f"""
-<div class="roadmap-step" role="listitem" tabindex="0">
-    <strong>{level_name}</strong>
-    <span>{module_list}</span>
-</div>
-            """
-        )
+    selected_level, selected_module, _ = get_selected_lesson()
+    selected_foundation = EDUCATIONAL_FOUNDATIONS.get(selected_level, {})
 
-    st.markdown(f"<div class='roadmap' role='list' aria-label='Learning Roadmap'>{''.join(steps)}</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"""
+<div class="learning-console">
+    <div>
+        <span class="console-eyebrow">FULL QISKIT LEARNING PATH</span>
+        <h3>{selected_module}</h3>
+        <p>{selected_foundation.get("summary", "Pick a level and module to begin.")}</p>
+    </div>
+    <div class="timeline-chip">{len(CURRICULUM[selected_level])} modules</div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    level_items = list(CURRICULUM.items())
+    level_cols = st.columns(len(level_items))
+    for index, (level_name, modules) in enumerate(level_items):
+        short_label = level_name.replace("Level ", "L").split(": ", 1)[0]
+        active = level_name == selected_level
+        with level_cols[index]:
+            label = f"{short_label} ✓" if active else short_label
+            if st.button(label, key=f"compact_level_{level_name}", use_container_width=True, disabled=active):
+                st.session_state.learning_nav_target = (level_name, next(iter(modules.keys())))
+                st.rerun()
+
+    module_names = list(CURRICULUM[selected_level].keys())
+    module_cols = st.columns(min(len(module_names), 4))
+    for index, module_name in enumerate(module_names):
+        active = module_name == selected_module
+        with module_cols[index % len(module_cols)]:
+            label = f"{module_name} ✓" if active else module_name
+            if st.button(label, key=f"compact_module_{selected_level}_{module_name}", use_container_width=True, disabled=active):
+                st.session_state.learning_nav_target = (selected_level, module_name)
+                st.rerun()
+
+    with st.expander("Educational foundation for this level", expanded=False):
+        st.markdown(f"**Foundation:** {selected_foundation.get('summary', 'Core concepts for this level.')}")
+        st.markdown("**Core ideas**")
+        for item in selected_foundation.get("materials", []):
+            st.markdown(f"- {item}")
+        st.markdown(f"**Try this:** {selected_foundation.get('try_this', 'Open the Composer and test one idea from this level.')}")
 
 
 def get_selected_lesson():
@@ -545,6 +577,13 @@ def render_interactive_code_challenge(module, lesson):
 def render_curriculum():
     st.sidebar.header("Learning Path")
     levels = list(CURRICULUM.keys())
+    nav_target = st.session_state.pop("learning_nav_target", None)
+    if nav_target:
+        target_level, target_module = nav_target
+        if target_level in CURRICULUM and target_module in CURRICULUM[target_level]:
+            st.session_state.selected_level = target_level
+            st.session_state.selected_module = target_module
+
     level = st.sidebar.selectbox("Level", levels, key="selected_level")
     module_options = list(CURRICULUM[level].keys())
     if st.session_state.get("selected_module") not in module_options:
@@ -565,6 +604,28 @@ def render_curriculum():
         unsafe_allow_html=True,
     )
 
+    detail_one, detail_two = st.columns(2)
+    with detail_one:
+        st.markdown(
+            f"""
+<div class="physics-card compact-card" role="region" aria-label="Composer Move" tabindex="0">
+    <strong>Composer move</strong><br>
+    <span>{lesson["composer"]}</span>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with detail_two:
+        st.markdown(
+            f"""
+<div class="physics-card compact-card" role="region" aria-label="Practice Lab" tabindex="0">
+    <strong>Practice lab</strong><br>
+    <span>{lesson["practice"]}</span>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     if "lesson_text" in lesson:
         st.markdown(
             f"""
@@ -578,37 +639,15 @@ def render_curriculum():
             unsafe_allow_html=True,
         )
 
-    col_one, col_two, col_three = st.columns(3)
-    with col_one:
-        st.markdown(
-            f"""
-<div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
-    <strong>Composer move</strong><br>
-    <span>{lesson["composer"]}</span>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col_two:
-        st.markdown(
-            f"""
-<div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
+    st.markdown(
+        f"""
+<div class="physics-card compact-card" role="region" aria-label="Checkpoint" tabindex="0">
     <strong>Checkpoint</strong><br>
     <span>{lesson["checkpoint"]}</span>
 </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with col_three:
-        st.markdown(
-            f"""
-<div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
-    <strong>Practice lab</strong><br>
-    <span>{lesson["practice"]}</span>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.divider()
     st.markdown("### Interactive Bloch Sphere")
