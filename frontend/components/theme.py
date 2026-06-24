@@ -368,14 +368,55 @@ def inject_theme():
         border-radius: 6px 6px 0 0;
         color: var(--muted);
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.88rem;
+        font-size: 1.08rem;
+        font-weight: 500;
         letter-spacing: 0.02em;
-        transition: color 200ms ease;
+        padding: 0.65rem 1rem;
+        transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+    }
+
+    .stTabs [data-baseweb="tab"] p,
+    .stTabs [data-baseweb="tab"] span {
+        font-size: 1.08rem !important;
+        font-weight: 500 !important;
+        line-height: 1.1 !important;
+    }
+
+    .stTabs [data-baseweb="tab"]:nth-of-type(1),
+    .stTabs [data-baseweb="tab"]:nth-of-type(1) p,
+    .stTabs [data-baseweb="tab"]:nth-of-type(1) span {
+        color: #65f4d4 !important;
+    }
+
+    .stTabs [data-baseweb="tab"]:nth-of-type(2),
+    .stTabs [data-baseweb="tab"]:nth-of-type(2) p,
+    .stTabs [data-baseweb="tab"]:nth-of-type(2) span {
+        color: #f6c85f !important;
+    }
+
+    .stTabs [data-baseweb="tab"]:nth-of-type(3),
+    .stTabs [data-baseweb="tab"]:nth-of-type(3) p,
+    .stTabs [data-baseweb="tab"]:nth-of-type(3) span {
+        color: #a7a2ff !important;
+    }
+
+    .stTabs [data-baseweb="tab"]:nth-of-type(1)[aria-selected="true"] {
+        border-bottom: 2px solid #65f4d4;
+        background: rgba(101, 244, 212, 0.08);
+    }
+
+    .stTabs [data-baseweb="tab"]:nth-of-type(2)[aria-selected="true"] {
+        border-bottom: 2px solid #f6c85f;
+        background: rgba(246, 200, 95, 0.08);
+    }
+
+    .stTabs [data-baseweb="tab"]:nth-of-type(3)[aria-selected="true"] {
+        border-bottom: 2px solid #a7a2ff;
+        background: rgba(167, 162, 255, 0.08);
     }
 
     .stTabs [aria-selected="true"] {
-        color: var(--cyan) !important;
-        border-bottom: 2px solid var(--cyan);
+        color: inherit !important;
     }
 
     /* ── Code blocks ── */

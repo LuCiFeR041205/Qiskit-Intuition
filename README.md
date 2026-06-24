@@ -87,4 +87,4 @@ agents/                        Offline teaching helpers
 
 This project is intentionally learner-facing. The UI prioritizes physical intuition first, then connects every visual action back to runnable Qiskit code.
 
-The secondary 'Qiskit-Intuition' folder is for Hugging-Faces only, and just meant to keep the site running. Please don't edit it.
+**The secondary 'Qiskit-Intuition' folder is for Hugging-Faces only, and just meant to keep the site running. Please don't edit it.**

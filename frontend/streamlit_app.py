@@ -877,7 +877,7 @@ render_cognitive_core_sidebar()
 
 render_quantum_field()
 
-tab_learn, tab_compose, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🧪 Sandbox"])
+tab_learn, tab_compose, tab_sandbox = st.tabs(["⁄ ⁄Learn⁄ ⁄", "⁄ ⁄Compose⁄ ⁄", "⁄ ⁄Sandbox⁄ ⁄"])
 
 with tab_learn:
     render_curriculum()
