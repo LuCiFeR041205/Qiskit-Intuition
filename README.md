@@ -13,43 +13,28 @@ pinned: false
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 [![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A51.0-blue)](https://qiskit.org/)
 
-**Note: This is an entirely new, experimental project in its early stages.** 
-We know it needs massive improvement, and we highly encourage anyone interested in quantum computing, frontend development, or AI agents to jump in and contribute!
+**Note: This is an experimental project in active development.** We encourage anyone interested in quantum computing, frontend development, or AI agents to contribute.
 
-This project is an effort to make quantum education deeply **intuitive**. It is an immersive, physics-first quantum learning workspace built with Streamlit, Qiskit, and a 3D interface.
+This project makes quantum education **intuitive**. It is an immersive, physics-first quantum learning workspace: a Streamlit frontend for building circuits visually and watching qubits move in 3D, backed by a decoupled FastAPI service for simulation, code execution, and offline teaching helpers.
 
-Our goal is to make Qiskit feel learnable from first principles: learners can build circuits visually, watch qubits move in 3D, inspect measurement probabilities, and progress from basic gates to advanced hardware workflows with the help of sophisticated AI tutors.
+## Architecture (CPRE)
+
+The app follows a **Composer → Physics → Readout → Explain** flow, decoupled into a frontend and a backend:
+
+- **Frontend (`frontend/streamlit_app.py`)** — Streamlit UI: gate palette, circuit composer, Bloch spheres, probability bars, curriculum roadmap, AI teaching lab, and the Quantum Quests tab.
+- **Backend (`backend/`, FastAPI)** — `core/quantum_engine.py` (Qiskit statevector + noise simulation, Bloch angles, Qiskit export), `core/quest_engine.py` (quest targets + fidelity grading), `core/notebook_engine.py` (sandboxed code execution), and routers for `/simulate`, `/execute`, and `/agent/*`.
+- **Educational agents (`agents/`, `frontend/agents/`)** — offline tutor, Feynman explainer, code generator, and Socratic checker. No hosted model key required for the public app.
 
 ## Features
 
-- **3D quantum field interface:** A physics-inspired Three.js scene frames the app as an interactive quantum lab.
-- **Composer-style circuit builder:** Add H, X, Y, Z, S, T, CNOT, Rx, Ry, and Rz gates across multiple qubits.
-- **Live Bloch sphere visualization:** Each qubit gets an interactive 3D Bloch sphere with coordinates, phase angles, and purity readouts.
-- **Measurement probabilities:** See basis-state probabilities update as the circuit changes.
-- **Qiskit export:** Every visual circuit can be copied as runnable Qiskit code.
-- **Curriculum from basic to advanced:** Lessons now span setup, quantum foundations, circuit skills, simulation, noise, algorithms, primitives, mitigation, and hardware execution.
-- **Sandbox notebook:** Run short Qiskit/Python experiments and capture stdout plus Matplotlib figures.
-- **AI teaching agents:** Offline tutor, code explainer, and Socratic checkpoint helpers that do not require a user key.
-
-## Learning Path
-
-1. **Level 0: Python + Qiskit Setup**
-   Python for circuits, Qiskit objects, circuit drawing, and statevector inspection.
-
-2. **Level 1: Quantum Foundations**
-   Qubits, superposition, measurement, and entanglement using Bloch-sphere intuition.
-
-3. **Level 2: Circuit Composer Skills**
-   Gate algebra, phase kickback, controlled gates, and parameterized rotations.
-
-4. **Level 3: Simulation + Noise**
-   Statevectors versus shots, noisy simulation, and transpilation.
-
-5. **Level 4: Quantum Algorithms**
-   Grover search, QFT, and VQE.
-
-6. **Level 5: Hardware + Advanced Workflows**
-   Qiskit primitives, error mitigation, and IBM Quantum hardware execution patterns.
+- **3D quantum field interface:** a physics-inspired Three.js scene frames the app as an interactive quantum lab.
+- **Composer-style circuit builder:** add H, X, Y, Z, S, T, CNOT, Rx, Ry, Rz across multiple qubits.
+- **Live Bloch sphere visualization:** each qubit gets an interactive 3D Bloch sphere with coordinates, phase angles, and purity readouts.
+- **Measurement probabilities:** basis-state probabilities update as the circuit changes (with optional noisy simulation).
+- **Qiskit export:** every visual circuit exports as runnable Qiskit code.
+- **Quantum Quests:** graded challenges where the learner builds a circuit and the app checks fidelity against a target state.
+- **Sandbox notebook:** run short Qiskit/Python experiments and capture stdout plus Matplotlib figures.
+- **Offline AI teaching agents:** tutor, code explainer, and Socratic checkpoint helpers.
 
 ## Local Setup
 
@@ -63,28 +48,44 @@ python3 -m venv venv
 source venv/bin/activate
 
 pip install -r requirements.txt
+
+# Frontend (Streamlit UI)
 streamlit run app.py --server.port 8502
+
+# Backend API (optional, in another terminal)
+uvicorn backend.main:app --reload --port 8000
 ```
 
-Open [http://localhost:8502](http://localhost:8502) or [http://127.0.0.1:8502](http://127.0.0.1:8502).
+Open [http://localhost:8502](http://localhost:8502). The backend serves `/health`, `/simulate`, `/execute`, and `/agent/*` on port 8000.
 
-## AI Tutor Setup
+## Testing
 
-The teaching helpers run offline using local rules and deterministic responses. No hosted model key is required for the public Streamlit app.
+```bash
+pytest tests/ -v
+```
+
+Tests cover the backend engine (probabilities, Bloch purity, Qiskit export), the sandbox execution core, and the quest grading (every quest target is reachable and unit-norm).
 
 ## Project Structure
 
 ```text
-app.py                         Main Streamlit application
-components/bloch_sphere.py     Interactive 3D Bloch sphere
-components/quantum_field.py    3D physics-inspired hero scene
-utils/quantum_engine.py        Qiskit circuit simulation and export
-utils/notebook_engine.py       Local sandbox execution
-agents/                        Offline teaching helpers
+app.py                              Entry point: launches frontend/streamlit_app.py
+backend/
+  main.py                           FastAPI app + CORS
+  core/
+    quantum_engine.py               Qiskit simulation, Bloch angles, export
+    quest_engine.py                 Quest targets + fidelity grading
+    notebook_engine.py              Sandboxed code execution
+  routers/                          simulate, execute, agents
+frontend/
+  streamlit_app.py                  Streamlit UI (composer, Bloch, quests, teaching lab)
+  components/                       bloch_sphere, circuit_composer, quantum_field, ...
+agents/  frontend/agents/           Offline teaching helpers
+tests/                             Pytest suites for engine, notebook, quests
 ```
 
 ## Notes
 
-This project is intentionally learner-facing. The UI prioritizes physical intuition first, then connects every visual action back to runnable Qiskit code.
+The UI prioritizes physical intuition first, then connects every visual action back to runnable Qiskit code.
 
 **The secondary 'Qiskit-Intuition' folder is for Hugging-Faces only, and just meant to keep the site running. Please don't edit it.**
