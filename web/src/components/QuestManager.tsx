@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { Complex, calculateFidelity } from "@/lib/quantum_simulator";
+import { quantumAudio } from "@/lib/quantum_audio";
 import confetti from "canvas-confetti";
-import { Target, Trophy, ChevronRight, HelpCircle, CheckCircle2, Award } from "lucide-react";
+import { Target, Trophy, ChevronRight, HelpCircle, CheckCircle2, Award, Sparkles } from "lucide-react";
 
 export interface Quest {
   id: string;
@@ -11,7 +12,7 @@ export interface Quest {
   level: string;
   description: string;
   hints: string[];
-  targetState: number[]; // Target amplitude vector
+  targetState: number[];
   numQubitsRequired: number;
 }
 
@@ -19,17 +20,17 @@ export const QUESTS: Quest[] = [
   {
     id: "q1",
     title: "Quest 1: The Quantum Flip",
-    level: "Level 1: Classical Analogs",
-    description: "Flip Qubit 0 from state |00⟩ to state |01⟩ (Qubit 0 = 1). This is the quantum equivalent of a classical NOT gate.",
+    level: "Phase 1: Single Qubit Kinematics",
+    description: "Flip Qubit 0 from ground state |00⟩ to excited state |01⟩ (Qubit 0 = 1). Observe the vector rotate from the North pole to the South pole.",
     hints: ["Apply the Pauli-X gate on Qubit 0."],
     targetState: [0, 1, 0, 0],
     numQubitsRequired: 2,
   },
   {
     id: "q2",
-    title: "Quest 2: Into Superposition",
-    level: "Level 1: Classical Analogs",
-    description: "Create an equal quantum superposition on Qubit 0: |+0⟩ = 1/√2 (|00⟩ + |01⟩).",
+    title: "Quest 2: Maximum Superposition",
+    level: "Phase 1: Single Qubit Kinematics",
+    description: "Create an equal coherent superposition on Qubit 0: |+0⟩ = 1/√2 (|00⟩ + |01⟩). Watch the Bloch arrow point directly along the +X equator.",
     hints: ["Use the Hadamard (H) gate on Qubit 0."],
     targetState: [0.70710678, 0.70710678, 0, 0],
     numQubitsRequired: 2,
@@ -37,8 +38,8 @@ export const QUESTS: Quest[] = [
   {
     id: "q3",
     title: "Quest 3: Spooky Action (Bell State)",
-    level: "Level 2: Entanglement",
-    description: "Entangle Qubit 0 and Qubit 1 to construct the famous Bell state |Φ+⟩ = 1/√2 (|00⟩ + |11⟩).",
+    level: "Phase 2: Quantum Entanglement",
+    description: "Entangle Qubit 0 and Qubit 1 to construct the EPR Bell state |Φ+⟩ = 1/√2 (|00⟩ + |11⟩). Notice how individual subsystem purity drops to 0%!",
     hints: [
       "Step 1: Put Qubit 0 in superposition with Hadamard (H).",
       "Step 2: Entangle with Qubit 1 using CNOT (Control: q0, Target: q1).",
@@ -48,9 +49,9 @@ export const QUESTS: Quest[] = [
   },
   {
     id: "q4",
-    title: "Quest 4: Quantum Phase Inversion",
-    level: "Level 2: Entanglement",
-    description: "Construct the singlet Bell state |Ψ-⟩ = 1/√2 (|01⟩ - |10⟩) with an inverted relative quantum phase.",
+    title: "Quest 4: Phase-Inverted Singlet State",
+    level: "Phase 2: Quantum Entanglement",
+    description: "Construct the singlet Bell state |Ψ-⟩ = 1/√2 (|01⟩ - |10⟩) with an inverted relative quantum phase (180° phase clock shift).",
     hints: [
       "Apply Pauli-X to both qubits, then Hadamard, then CNOT.",
     ],
@@ -85,13 +86,13 @@ export const QuestManager: React.FC<QuestManagerProps> = ({
   useEffect(() => {
     if (isComplete && quest && !completedQuests.includes(quest.id)) {
       setCompletedQuests((prev) => [...prev, quest.id]);
-      // Trigger festive quantum confetti celebration
+      quantumAudio.playSuccessFanfare();
       try {
         confetti({
-          particleCount: 80,
-          spread: 70,
+          particleCount: 100,
+          spread: 80,
           origin: { y: 0.6 },
-          colors: ["#00F0FF", "#00FF9D", "#FFB800"],
+          colors: ["#1B4B8A", "#1A7A6D", "#B8860B", "#C13628"],
         });
       } catch {}
     }
@@ -101,64 +102,60 @@ export const QuestManager: React.FC<QuestManagerProps> = ({
     if (currentQuestIdx < QUESTS.length - 1) {
       setCurrentQuestIdx((prev) => prev + 1);
       setShowHint(false);
+      quantumAudio.playGatePulse("H");
     }
   };
 
   const fidelityPct = (fidelity * 100).toFixed(1);
 
   return (
-    <div className="w-full bg-gradient-to-b from-surface-100/90 to-surface-300/90 rounded-xl border border-hud-border/40 overflow-hidden shadow-2xl backdrop-blur-md p-4 flex flex-col gap-4">
+    <div className="paper-card dog-ear p-5 flex flex-col gap-4 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-hud-border/20 pb-3">
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-quantum-cyan" />
-          <span className="font-mono text-xs font-bold tracking-wider text-quantum-cyan uppercase">
-            Active Quantum Objective
-          </span>
-        </div>
+      <div className="flex items-center justify-between pb-3 pencil-divider border-b">
+        <h2 className="section-title text-ink font-serif text-lg">
+          Exercises & Challenges
+        </h2>
 
-        <div className="flex items-center gap-1.5 text-xs font-mono text-hud-muted">
-          <Trophy className="w-3.5 h-3.5 text-quantum-gold" />
+        <div className="flex items-center gap-1.5 text-sm font-mono text-ink-amber">
+          <Trophy className="w-4 h-4" />
           <span>
-            {completedQuests.length} / {QUESTS.length} Completed
+            {completedQuests.length} / {QUESTS.length} completed
           </span>
         </div>
       </div>
 
       {quest ? (
-        <div className="flex flex-col gap-3">
-          {/* Quest Title & Level */}
+        <div className="flex flex-col gap-4">
+          {/* Title & Level */}
           <div>
-            <div className="text-[10px] font-mono text-quantum-gold uppercase font-bold tracking-wider">
+            <div className="font-serif italic text-ink-light text-xs">
               {quest.level}
             </div>
-            <h3 className="text-base font-display font-bold text-hud-text mt-0.5">
+            <h3 className="font-serif font-bold text-ink mt-1 text-lg">
               {quest.title}
             </h3>
-            <p className="text-xs text-hud-muted font-sans leading-relaxed mt-1">
+            <p className="font-sans text-ink-light leading-relaxed mt-2 text-sm">
               {quest.description}
             </p>
           </div>
 
           {/* Live Fidelity Scanner Gauge */}
-          <div className="bg-surface-300/90 p-3 rounded-lg border border-hud-subtle/30 font-mono text-xs">
+          <div className="font-mono text-xs">
             <div className="flex justify-between items-center mb-1.5">
-              <span className="text-hud-muted">Quantum Target Fidelity:</span>
+              <span className="text-ink-light">Target Fidelity:</span>
               <span
                 className={`font-bold ${
-                  isComplete ? "text-quantum-green text-sm" : "text-quantum-cyan"
+                  isComplete ? "text-ink-teal" : "text-ink"
                 }`}
               >
-                {fidelityPct}% {isComplete && "✓ STATE ACHIEVED"}
+                {fidelityPct}% {isComplete && "✓"}
               </span>
             </div>
             {/* Progress bar */}
-            <div className="w-full h-2 bg-surface-50 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-paper-ruled rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-300 ${
-                  isComplete
-                    ? "bg-gradient-to-r from-quantum-green to-emerald-300 shadow-lg shadow-quantum-green/50"
-                    : "bg-gradient-to-r from-quantum-cyan to-quantum-gold"
+                  isComplete ? "bg-ink-teal" : "bg-ink-blue"
                 }`}
                 style={{ width: `${Math.min(fidelity * 100, 100)}%` }}
               />
@@ -169,43 +166,46 @@ export const QuestManager: React.FC<QuestManagerProps> = ({
           <div>
             <button
               onClick={() => setShowHint(!showHint)}
-              className="text-[11px] font-mono text-quantum-cyan hover:text-quantum-cyan/80 flex items-center gap-1"
+              className="ink-btn flex items-center gap-1.5 text-xs"
             >
               <HelpCircle className="w-3.5 h-3.5" />
-              <span>{showHint ? "Hide Socratic Hint" : "Need a physics hint?"}</span>
+              <span>{showHint ? "Hide hint" : "Need a hint?"}</span>
             </button>
             {showHint && (
-              <div className="mt-2 p-2.5 rounded-lg bg-surface-200 border border-hud-border/20 text-xs font-mono text-hud-muted space-y-1">
+              <div className="mt-3 bg-paper-warm border-l-2 border-pencil pl-3 py-2 font-serif italic text-sm text-ink-light space-y-2">
                 {quest.hints.map((h, i) => (
-                  <div key={i}>• {h}</div>
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-ink-amber font-bold">·</span>
+                    <span>{h}</span>
+                  </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Completion Celebration / Next Button */}
+          {/* Completion Celebration */}
           {isComplete && (
-            <div className="flex items-center justify-between p-3 rounded-lg bg-quantum-green/10 border border-quantum-green/30">
-              <div className="flex items-center gap-2 text-quantum-green font-mono text-xs font-bold">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Objective Complete!</span>
+            <div className="flex items-center justify-between p-3.5 bg-paper-warm border-l-4 border-ink-teal mt-2">
+              <div className="flex items-center gap-2 text-ink-teal font-sans font-bold text-sm">
+                <CheckCircle2 className="w-5 h-5" />
+                <span>State Verified</span>
               </div>
               {currentQuestIdx < QUESTS.length - 1 && (
                 <button
                   onClick={handleNextQuest}
-                  className="px-3 py-1.5 rounded-lg bg-quantum-green text-background font-mono text-xs font-bold flex items-center gap-1 hover:scale-105 transition-all shadow-md shadow-quantum-green/20"
+                  className="ink-btn bg-ink-blue text-paper hover:bg-ink flex items-center gap-1.5 text-xs font-sans font-bold border-none"
                 >
-                  <span>Next Quest</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <span>Next Exercise</span>
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               )}
             </div>
           )}
         </div>
       ) : (
-        <div className="text-center py-6 text-quantum-green font-mono text-sm font-bold flex flex-col items-center gap-2">
-          <Award className="w-8 h-8 text-quantum-gold animate-bounce" />
-          <span>All Quantum Quests Mastered!</span>
+        <div className="text-center py-8 flex flex-col items-center gap-3">
+          <Award className="w-12 h-12 text-ink-amber" />
+          <span className="font-serif text-ink font-bold text-xl">All Exercises Mastered!</span>
         </div>
       )}
     </div>

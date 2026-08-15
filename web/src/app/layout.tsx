@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Qiskit Intuition | Interactive Physics Quantum Laboratory",
+  title: "Qiskit Intuition — Interactive Quantum Laboratory Notebook",
   description:
-    "Explore quantum mechanics through real-time 3D Bloch Spheres, dynamic circuit composer wires, wavefunction oscilloscopes, and Socratic AI coaching.",
+    "Explore quantum mechanics through interactive 3D Bloch spheres, dynamic circuit composition, wavefunction analysis, and Socratic AI guidance — styled as a physicist's notebook.",
 };
 
 export default function RootLayout({
@@ -13,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-background text-foreground antialiased selection:bg-quantum-cyan/30 selection:text-quantum-cyan">
+    <html lang="en">
+      <body className="min-h-screen bg-paper text-ink antialiased">
         {children}
       </body>
     </html>

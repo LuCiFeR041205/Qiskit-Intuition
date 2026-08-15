@@ -1,26 +1,29 @@
-import base64
 import math
-from io import BytesIO
 
-import matplotlib.pyplot as plt
-import requests
-import streamlit as st
 from dotenv import load_dotenv
+load_dotenv()
+
+import streamlit as st
+
+import requests
+import json
+import base64
+from io import BytesIO
 from PIL import Image
+import matplotlib.pyplot as plt
 
 # Client-side agent and component imports
 from frontend.agents.composer_agent import explain_composer_action
+from frontend.agents.feynman_agent import explain_concept
+from frontend.agents.qiskit_engineer import generate_code
+from frontend.agents.socratic_tutor import generate_problem
+from frontend.agents.router_agent import route_and_respond, classify_intent, AGENT_META
 from frontend.components.bloch_sphere import render_bloch_sphere
 from frontend.components.quantum_field import render_quantum_field
 from frontend.components.circuit_composer import render_circuit_composer
 from frontend.components.code_editor import render_sandbox_header, PRESET_EXPERIMENTS
 from frontend.components.local_copilot import render_local_copilot
-from frontend.components.data_store import GATE_LIBRARY, CURRICULUM, EDUCATIONAL_FOUNDATIONS
-from frontend.components.theme import inject_theme
-from backend.core.quest_engine import render_quest_tab
-
-load_dotenv()
-
+from backend.core.quest_engine import get_quests, render_quest_tab
 BACKEND_URL = "http://localhost:8000"
 
 def is_backend_online():
@@ -173,6 +176,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+from frontend.components.data_store import GATE_LIBRARY, CURRICULUM
+from frontend.components.theme import inject_theme
+
 def init_session_state():
     defaults = {
         "composer_gates": [],
@@ -181,6 +187,7 @@ def init_session_state():
         "num_qubits": 2,
         "chat_history": [],
         "sandbox_code": PRESET_EXPERIMENTS["Bell State"]["code"],
+        "user_gemini_api_key": "",
         "eli5_mode": False,
         "noisy_simulation": False,
     }
@@ -241,49 +248,6 @@ def build_engine():
     return engine
 
 
-def get_composer_context():
-    if not st.session_state.composer_gates:
-        return f"Visual circuit: {st.session_state.num_qubits} qubits, no gates added."
-
-    sequence = []
-    for index, gate in enumerate(st.session_state.composer_gates, start=1):
-        if gate["gate"] == "CNOT":
-            sequence.append(f"{index}. CNOT control q{gate['control']} target q{gate['target']}")
-        elif gate["gate"] in {"RX", "RY", "RZ"}:
-            sequence.append(f"{index}. {gate['gate']} on q{gate['target']} angle {gate.get('angle', 0):.3f} radians")
-        else:
-            sequence.append(f"{index}. {gate['gate']} on q{gate['target']}")
-
-    return f"Visual circuit: {st.session_state.num_qubits} qubits. Gates: " + "; ".join(sequence)
-
-
-def get_lab_context():
-    levels = list(CURRICULUM.keys())
-    selected_level = st.session_state.get("selected_level", levels[0])
-    if selected_level not in CURRICULUM:
-        selected_level = levels[0]
-
-    modules = list(CURRICULUM[selected_level].keys())
-    selected_module = st.session_state.get("selected_module", modules[0])
-    if selected_module not in CURRICULUM[selected_level]:
-        selected_module = modules[0]
-
-    lesson = CURRICULUM[selected_level][selected_module]
-    sandbox_lines = [line.strip() for line in st.session_state.sandbox_code.splitlines() if line.strip()]
-    sandbox_preview = " ".join(sandbox_lines[:4]) if sandbox_lines else "No sandbox code."
-
-    return "\n".join(
-        [
-            f"Current lesson: {selected_level} / {selected_module}.",
-            f"Lesson big idea: {lesson.get('big_idea', 'No lesson selected.')}",
-            f"Lesson checkpoint: {lesson.get('checkpoint', 'No checkpoint selected.')}",
-            f"Lesson practice: {lesson.get('practice', 'No practice selected.')}",
-            get_composer_context(),
-            f"Sandbox preview: {sandbox_preview[:420]}",
-        ]
-    )
-
-
 # ── Gate Palette ──
 
 def render_gate_palette():
@@ -340,13 +304,13 @@ def render_gate_palette():
 # ── Composer Feedback ──
 
 def render_composer_feedback():
-    st.markdown("#### A.C.E. Circuit Coach")
+    st.markdown("#### Physics Coach")
     if not st.session_state.composer_last_gate:
         st.markdown(
             """
 <div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
-    <strong>Waiting for a gate</strong><br>
-    <span>Add a gate from the palette and A.C.E. will summarize the physical change here.</span>
+    <strong>Ready state:</strong><br>
+    <span>Add a gate and the coach will explain what physically changed in the circuit.</span>
 </div>
             """,
             unsafe_allow_html=True,
@@ -354,28 +318,20 @@ def render_composer_feedback():
         return
 
     gate_name, q_idx = st.session_state.composer_last_gate
-    st.markdown(
-        f"""
-<div class="physics-card" role="region" aria-label="A.C.E. Circuit Coach" tabindex="0">
-    <strong>Latest move</strong><br>
-    <span>{gate_name} on q{q_idx}</span>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if not st.session_state.composer_ai_feedback:
-        sequence = []
-        for gate in st.session_state.composer_gates:
-            if gate["gate"] == "CNOT":
-                sequence.append(f"CNOT control q{gate['control']} target q{gate['target']}")
-            else:
-                sequence.append(f"{gate['gate']} on q{gate['target']}")
-        st.session_state.composer_ai_feedback = st.write_stream(
-            explain_composer_action(gate_name, q_idx, " → ".join(sequence), eli5_mode=st.session_state.get("eli5_mode", False))
-        )
-    else:
-        st.markdown(st.session_state.composer_ai_feedback)
+    with st.chat_message("assistant", avatar="⚛️"):
+        st.markdown("**A.C.E. Physics Coach**")
+        if not st.session_state.composer_ai_feedback:
+            sequence = []
+            for gate in st.session_state.composer_gates:
+                if gate["gate"] == "CNOT":
+                    sequence.append(f"CNOT control q{gate['control']} target q{gate['target']}")
+                else:
+                    sequence.append(f"{gate['gate']} on q{gate['target']}")
+            st.session_state.composer_ai_feedback = st.write_stream(
+                explain_composer_action(gate_name, q_idx, " → ".join(sequence), eli5_mode=st.session_state.get("eli5_mode", False))
+            )
+        else:
+            st.markdown(st.session_state.composer_ai_feedback)
 
 
 # ── Probability Bars ──
@@ -417,178 +373,28 @@ def render_state_readout(angles):
 # ── Learning Roadmap ──
 
 def render_learning_roadmap():
-    selected_level, selected_module, _ = get_selected_lesson()
-    selected_foundation = EDUCATIONAL_FOUNDATIONS.get(selected_level, {})
-
-    st.markdown(
-        f"""
-<div class="learning-console">
-    <div>
-        <span class="console-eyebrow">FULL QISKIT LEARNING PATH</span>
-        <h3>{selected_module}</h3>
-        <p>{selected_foundation.get("summary", "Pick a level and module to begin.")}</p>
-    </div>
-    <div class="timeline-chip">{len(CURRICULUM[selected_level])} modules</div>
+    st.markdown("### Full Qiskit Learning Path")
+    steps = []
+    for level_name, modules in CURRICULUM.items():
+        module_list = ", ".join(modules.keys())
+        steps.append(
+            f"""
+<div class="roadmap-step" role="listitem" tabindex="0">
+    <strong>{level_name}</strong>
+    <span>{module_list}</span>
 </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """
+        )
 
-    level_items = list(CURRICULUM.items())
-    level_cols = st.columns(len(level_items))
-    for index, (level_name, modules) in enumerate(level_items):
-        short_label = level_name.replace("Level ", "L").split(": ", 1)[0]
-        active = level_name == selected_level
-        with level_cols[index]:
-            label = f"{short_label} ✓" if active else short_label
-            if st.button(label, key=f"compact_level_{level_name}", use_container_width=True, disabled=active):
-                st.session_state.learning_nav_target = (level_name, next(iter(modules.keys())))
-                st.rerun()
-
-    module_names = list(CURRICULUM[selected_level].keys())
-    module_cols = st.columns(min(len(module_names), 4))
-    for index, module_name in enumerate(module_names):
-        active = module_name == selected_module
-        with module_cols[index % len(module_cols)]:
-            label = f"{module_name} ✓" if active else module_name
-            if st.button(label, key=f"compact_module_{selected_level}_{module_name}", use_container_width=True, disabled=active):
-                st.session_state.learning_nav_target = (selected_level, module_name)
-                st.rerun()
-
-    with st.expander("Educational foundation for this level", expanded=False):
-        st.markdown(f"**Foundation:** {selected_foundation.get('summary', 'Core concepts for this level.')}")
-        st.markdown("**Core ideas**")
-        for item in selected_foundation.get("materials", []):
-            st.markdown(f"- {item}")
-        st.markdown(f"**Try this:** {selected_foundation.get('try_this', 'Open the Composer and test one idea from this level.')}")
-
-
-def get_selected_lesson():
-    levels = list(CURRICULUM.keys())
-    selected_level = st.session_state.get("selected_level", levels[0])
-    if selected_level not in CURRICULUM:
-        selected_level = levels[0]
-
-    modules = list(CURRICULUM[selected_level].keys())
-    selected_module = st.session_state.get("selected_module", modules[0])
-    if selected_module not in CURRICULUM[selected_level]:
-        selected_module = modules[0]
-
-    return selected_level, selected_module, CURRICULUM[selected_level][selected_module]
-
-
-def render_ai_teaching_lab(module, lesson, surface=st):
-    surface.markdown("### AI Teaching Lab")
-    if f"feynman_{module}" not in st.session_state:
-        st.session_state[f"feynman_{module}"] = ""
-        st.session_state[f"code_{module}"] = ""
-        st.session_state[f"tutor_{module}"] = ""
-
-    surface.markdown("**A.C.E. Tutor**")
-    surface.markdown(
-        f"Welcome to the **{module}** module. "
-        f"{lesson['big_idea']} "
-        f"Use the button below to activate the AI teaching agents, "
-        f"or explore the Bloch sphere and composer on your own first."
-    )
-
-    if surface.button("🚀 Generate Explanation, Code, and Checkpoint", use_container_width=True, key=f"teaching_lab_{module}"):
-        import time
-
-        def offline_stream(text: str):
-            words = text.split(" ")
-            for w in words:
-                yield w + " "
-                time.sleep(0.012)
-
-        def clean_html_to_markdown(html: str) -> str:
-            clean = html.replace("<br>", "\n").replace("<strong>", "**").replace("</strong>", "**")
-            clean = clean.replace("<ul>", "").replace("</ul>", "").replace("<li>", "- ").replace("</li>", "\n")
-            clean = clean.replace("<code>", "`").replace("</code>", "`")
-            return clean
-
-        raw_lesson = lesson.get("lesson_text", "Lesson content active.")
-        lesson_md = clean_html_to_markdown(raw_lesson)
-        code_md = f"Here is the physical code template for **{module}**:\n\n```python\n{lesson.get('tutorial_code', '# Code template')}\n```"
-        challenge_md = f"**Diagnostic protocol online:**\n\n{lesson.get('tutor_challenge', 'Ready to test understanding.')}"
-
-        surface.markdown("**Physical intuition**")
-        st.session_state[f"feynman_{module}"] = surface.write_stream(offline_stream(lesson_md))
-        surface.markdown("**Qiskit code**")
-        st.session_state[f"code_{module}"] = surface.write_stream(offline_stream(code_md))
-        surface.markdown("**Socratic checkpoint**")
-        st.session_state[f"tutor_{module}"] = surface.write_stream(offline_stream(challenge_md))
-
-    if st.session_state[f"feynman_{module}"]:
-        with surface.expander("Saved teaching output", expanded=False):
-            surface.markdown(st.session_state[f"feynman_{module}"])
-            surface.markdown(st.session_state[f"code_{module}"])
-            surface.markdown(st.session_state[f"tutor_{module}"])
-
-
-def render_interactive_code_challenge(module, lesson):
-    if not st.session_state.get(f"feynman_{module}"):
-        return
-
-    st.divider()
-    st.markdown("### 💻 Interactive Code Challenge")
-    st.caption("Try writing the Qiskit code to solve the challenge above!")
-
-    challenge_code_key = f"challenge_code_{module}"
-    if challenge_code_key not in st.session_state:
-        st.session_state[challenge_code_key] = lesson.get("tutorial_code", "# Write your Qiskit code here...\n")
-
-    user_code = st.text_area(
-        "Challenge Editor",
-        value=st.session_state[challenge_code_key],
-        height=250,
-        label_visibility="collapsed",
-    )
-    st.session_state[challenge_code_key] = user_code
-
-    if st.button("▶ Run Challenge Code", type="primary"):
-        with st.spinner("Running your code..."):
-            result = execute_notebook_code(user_code)
-
-            if result["success"]:
-                st.success("Execution completed successfully!")
-            else:
-                st.error("Execution failed.")
-                if result["error"]:
-                    st.code(result["error"], language="python")
-                elif result["stderr"]:
-                    st.code(result["stderr"], language="python")
-
-            if result["stdout"]:
-                st.markdown("#### Output")
-                st.code(result["stdout"])
-
-            if result["figures"]:
-                st.markdown("#### Figures")
-                for fig in result["figures"]:
-                    if isinstance(fig, plt.Figure):
-                        st.pyplot(fig)
-                    else:
-                        st.image(fig)
+    st.markdown(f"<div class='roadmap' role='list' aria-label='Learning Roadmap'>{''.join(steps)}</div>", unsafe_allow_html=True)
 
 
 # ── Learn Tab ──
 
 def render_curriculum():
     st.sidebar.header("Learning Path")
-    levels = list(CURRICULUM.keys())
-    nav_target = st.session_state.pop("learning_nav_target", None)
-    if nav_target:
-        target_level, target_module = nav_target
-        if target_level in CURRICULUM and target_module in CURRICULUM[target_level]:
-            st.session_state.selected_level = target_level
-            st.session_state.selected_module = target_module
-
-    level = st.sidebar.selectbox("Level", levels, key="selected_level")
-    module_options = list(CURRICULUM[level].keys())
-    if st.session_state.get("selected_module") not in module_options:
-        st.session_state.selected_module = module_options[0]
-    module = st.sidebar.radio("Module", module_options, key="selected_module")
+    level = st.sidebar.selectbox("Level", list(CURRICULUM.keys()))
+    module = st.sidebar.radio("Module", list(CURRICULUM[level].keys()))
     lesson = CURRICULUM[level][module]
 
     render_learning_roadmap()
@@ -604,28 +410,6 @@ def render_curriculum():
         unsafe_allow_html=True,
     )
 
-    detail_one, detail_two = st.columns(2)
-    with detail_one:
-        st.markdown(
-            f"""
-<div class="physics-card compact-card" role="region" aria-label="Composer Move" tabindex="0">
-    <strong>Composer move</strong><br>
-    <span>{lesson["composer"]}</span>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with detail_two:
-        st.markdown(
-            f"""
-<div class="physics-card compact-card" role="region" aria-label="Practice Lab" tabindex="0">
-    <strong>Practice lab</strong><br>
-    <span>{lesson["practice"]}</span>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
     if "lesson_text" in lesson:
         st.markdown(
             f"""
@@ -639,15 +423,37 @@ def render_curriculum():
             unsafe_allow_html=True,
         )
 
-    st.markdown(
-        f"""
-<div class="physics-card compact-card" role="region" aria-label="Checkpoint" tabindex="0">
+    col_one, col_two, col_three = st.columns(3)
+    with col_one:
+        st.markdown(
+            f"""
+<div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
+    <strong>Composer move</strong><br>
+    <span>{lesson["composer"]}</span>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col_two:
+        st.markdown(
+            f"""
+<div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
     <strong>Checkpoint</strong><br>
     <span>{lesson["checkpoint"]}</span>
 </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
+    with col_three:
+        st.markdown(
+            f"""
+<div class="physics-card" role="region" aria-label="Physics Concept" tabindex="0">
+    <strong>Practice lab</strong><br>
+    <span>{lesson["practice"]}</span>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.divider()
     st.markdown("### Interactive Bloch Sphere")
@@ -665,22 +471,96 @@ def render_curriculum():
         render_bloch_sphere(theta_rad, phi_rad, qubit_name="lesson qubit")
 
     st.divider()
-    render_ai_teaching_lab(module, lesson)
-    render_interactive_code_challenge(module, lesson)
+    st.markdown("### AI Teaching Lab")
+    if f"feynman_{module}" not in st.session_state:
+        st.session_state[f"feynman_{module}"] = ""
+        st.session_state[f"code_{module}"] = ""
+        st.session_state[f"tutor_{module}"] = ""
+
+    with st.chat_message("assistant", avatar="⚛️"):
+        st.markdown("**A.C.E. Tutor**")
+        st.markdown(
+            f"Welcome to the **{module}** module. "
+            f"{lesson['big_idea']} "
+            f"Use the button below to activate the AI teaching agents, "
+            f"or explore the Bloch sphere and composer on your own first."
+        )
+
+    if st.button("🚀 Generate Explanation, Code, and Checkpoint", use_container_width=True):
+        import time
+        
+        def offline_stream(text: str):
+            words = text.split(" ")
+            for w in words:
+                yield w + " "
+                time.sleep(0.012) # Satisfying typewriter rate
+
+        def clean_html_to_markdown(html: str) -> str:
+            clean = html.replace("<br>", "\n").replace("<strong>", "**").replace("</strong>", "**")
+            clean = clean.replace("<ul>", "").replace("</ul>", "").replace("<li>", "- ").replace("</li>", "\n")
+            clean = clean.replace("<code>", "`").replace("</code>", "`")
+            return clean
+
+        raw_lesson = lesson.get("lesson_text", "Lesson content active.")
+        lesson_md = clean_html_to_markdown(raw_lesson)
+        code_md = f"Here is the physical code template for **{module}**:\n\n```python\n{lesson.get('tutorial_code', '# Code template')}\n```"
+        challenge_md = f"**Diagnostic protocol online:**\n\n{lesson.get('tutor_challenge', 'Ready to test understanding.')}"
+
+        with st.chat_message("assistant", avatar="🧠"):
+            st.markdown("**Physical intuition**")
+            st.session_state[f"feynman_{module}"] = st.write_stream(offline_stream(lesson_md))
+        with st.chat_message("assistant", avatar="⌨️"):
+            st.markdown("**Qiskit code**")
+            st.session_state[f"code_{module}"] = st.write_stream(offline_stream(code_md))
+        with st.chat_message("assistant", avatar="🎯"):
+            st.markdown("**Socratic checkpoint**")
+            st.session_state[f"tutor_{module}"] = st.write_stream(offline_stream(challenge_md))
+
+    if st.session_state[f"feynman_{module}"]:
+        with st.expander("Saved teaching output", expanded=True):
+            st.markdown(st.session_state[f"feynman_{module}"])
+            st.markdown(st.session_state[f"code_{module}"])
+            st.markdown(st.session_state[f"tutor_{module}"])
+            
+        st.markdown("### 💻 Interactive Code Challenge")
+        st.caption("Try writing the Qiskit code to solve the challenge above!")
+        
+        challenge_code_key = f"challenge_code_{module}"
+        if challenge_code_key not in st.session_state:
+            st.session_state[challenge_code_key] = lesson.get('tutorial_code', '# Write your Qiskit code here...\n')
+            
+        user_code = st.text_area("Challenge Editor", value=st.session_state[challenge_code_key], height=250, label_visibility="collapsed")
+        st.session_state[challenge_code_key] = user_code
+        
+        if st.button("▶ Run Challenge Code", type="primary"):
+            with st.spinner("Running your code..."):
+                result = execute_notebook_code(user_code)
+                
+                if result["success"]:
+                    st.success("Execution completed successfully!")
+                else:
+                    st.error("Execution failed.")
+                    if result["error"]:
+                        st.code(result["error"], language="python")
+                    elif result["stderr"]:
+                        st.code(result["stderr"], language="python")
+                    
+                if result["stdout"]:
+                    st.markdown("#### Output")
+                    st.code(result["stdout"])
+                
+                if result["figures"]:
+                    st.markdown("#### Figures")
+                    for fig in result["figures"]:
+                        if isinstance(fig, plt.Figure):
+                            st.pyplot(fig)
+                        else:
+                            st.image(fig)
 
 
 # ── Compose Tab ──
 
 def render_composer():
-    engine = build_engine()
-
-    st.markdown("## Composer Missions")
-    st.caption("Use the visual composer below to complete the active quest.")
-    render_quest_tab(engine)
-
-    st.divider()
-    st.markdown("## Visual Composer")
-
     st.sidebar.header("Composer Setup")
     selected_qubits = st.sidebar.slider("Qubits", 1, 4, st.session_state.num_qubits)
     if selected_qubits != st.session_state.num_qubits:
@@ -701,7 +581,8 @@ def render_composer():
         st.markdown("#### Visual Circuit")
         render_circuit_composer(st.session_state.composer_gates, st.session_state.num_qubits)
         
-        st.markdown("#### Gate Palette & A.C.E. Coach")
+        st.markdown("#### 🗣️ Natural Language Circuit Builder")
+        st.info("A.C.E. Builder is running locally. Go to the Copilot tab to chat!")
         controls, feedback = st.columns([4, 8])
         with controls:
             render_gate_palette()
@@ -735,40 +616,10 @@ def render_composer():
 
 # ── Chat Tab ──
 
-def render_offline_code_explanation(code: str):
-    lines = [line.strip() for line in code.splitlines() if line.strip()]
-    observations = []
-
-    if any("QuantumCircuit" in line for line in lines):
-        observations.append("You create a `QuantumCircuit`, which is the recipe board where each qubit operation is placed in order.")
-    if any(".h(" in line or ".h " in line for line in lines):
-        observations.append("A Hadamard gate appears, so at least one qubit is being moved into superposition.")
-    if any(".x(" in line or ".x " in line for line in lines):
-        observations.append("A Pauli-X gate appears, which acts like a quantum bit flip between |0> and |1>.")
-    if any(".cx(" in line or ".cnot(" in line for line in lines):
-        observations.append("A controlled-X operation appears, which can entangle qubits by making one qubit depend on another.")
-    if any("measure" in line for line in lines):
-        observations.append("The circuit includes measurement, so the quantum state is being converted into classical bits.")
-    if any("Statevector" in line for line in lines):
-        observations.append("Statevector inspection is used, so you are looking at amplitudes before sampling noise or measurement randomness.")
-    if any("AerSimulator" in line or "Simulator" in line for line in lines):
-        observations.append("A simulator is involved, so the experiment runs locally rather than on quantum hardware.")
-
-    if not observations:
-        observations.append("This code is treated as a local Qiskit/Python experiment. Read it top to bottom as setup, circuit construction, execution, then output.")
-
-    text = [
-        "**A.C.E. offline readout**",
-        "",
-        "No API key is used here. I am giving a local structural explanation of the code you wrote.",
-        "",
-    ]
-    text.extend(f"- {item}" for item in observations)
-    text.extend([
-        "",
-        "**Next check:** run the code, then compare the output with the circuit diagram and probability readout.",
-    ])
-    return "\n".join(text)
+def render_chat():
+    st.markdown("## A.C.E. Copilot Console")
+    st.caption("Ask anything about quantum computing. Your copilot runs 100% locally in your browser.")
+    render_local_copilot()
 
 
 # ── Sandbox Tab ──
@@ -776,6 +627,19 @@ def render_offline_code_explanation(code: str):
 def render_sandbox():
     st.markdown("## Qiskit Sandbox")
     st.caption("Run short Qiskit experiments locally and compare the output with the visual composer.")
+
+    # Check if API key is provided
+    api_key_configured = st.session_state.get("user_gemini_api_key", "").strip()
+    is_online = is_backend_online()
+    backend_has_key = False
+    if is_online:
+        try:
+            r = requests.get(f"{BACKEND_URL}/health", timeout=0.5)
+            if r.status_code == 200:
+                backend_has_key = r.json().get("api_key_configured", False)
+        except Exception:
+            pass
+    has_active_key = bool(api_key_configured or backend_has_key)
 
     # Terminal header
     render_sandbox_header()
@@ -805,7 +669,8 @@ def render_sandbox():
         explain_clicked = st.button(
             "🧠 Explain This Code",
             use_container_width=True,
-            help="Uses a local rule-based explanation. No API key required."
+            disabled=not has_active_key,
+            help="Provide a Gemini API Key in the sidebar to enable live code explanations."
         )
 
     if run_clicked:
@@ -819,7 +684,7 @@ def render_sandbox():
             st.code(result["error"], language="python")
 
         if result["stdout"]:
-            st.markdown("#### Output")
+            st.markdown("#### stdout")
             st.code(result["stdout"])
         if result["stderr"]:
             st.markdown("#### stderr")
@@ -835,10 +700,19 @@ def render_sandbox():
     if explain_clicked:
         with st.chat_message("assistant", avatar="🧠"):
             st.markdown("**A.C.E. Code Explainer**")
-            st.markdown(render_offline_code_explanation(notebook_code))
+            from frontend.agents.base_agent import generate_stream
+            explain_prompt = """
+You are A.C.E., a warm and brilliant code tutor. The user has written Qiskit code.
+Explain what each significant line does in plain English, referencing the quantum physics involved.
+Be encouraging and address the user as 'Explorer'. Use markdown formatting.
+Keep the explanation clear, educational, and under 300 words.
+"""
+            response = st.write_stream(generate_stream(explain_prompt, f"Explain this code:\n\n```python\n{notebook_code}\n```"))
 
 
 def render_cognitive_core_sidebar():
+    has_active_key = True
+    
     status_color = "#65f4d4"
     status_text = "OFFLINE COGNITION ACTIVE"
     pulse_style = f"background-color: {status_color}; box-shadow: 0 0 10px {status_color};"
@@ -854,7 +728,7 @@ def render_cognitive_core_sidebar():
                 </div>
             </div>
             <p style="font-size: 0.8rem; color: #8fa09e; line-height: 1.4; margin: 0 0 12px 0;">
-                A.C.E. uses a browser-local model and local teaching routines. No external account required.
+                All AI agents are running 100% locally in your browser. No API keys required. Privacy maximized.
             </p>
         </div>
         """,
@@ -862,9 +736,26 @@ def render_cognitive_core_sidebar():
     )
         
     st.sidebar.divider()
-    st.sidebar.markdown("### A.C.E. Offline")
-    with st.sidebar:
-        render_local_copilot(height=430, compact=True, lab_context=get_lab_context())
+    
+    st.sidebar.markdown("### 🎛️ Reality Settings")
+    
+    eli5_col, eli5_info = st.sidebar.columns([3, 1])
+    with eli5_col:
+        eli5_mode = st.toggle("🧒 ELI5 Mode", value=st.session_state.get("eli5_mode", False))
+        if eli5_mode != st.session_state.get("eli5_mode"):
+            st.session_state["eli5_mode"] = eli5_mode
+            st.rerun()
+    with eli5_info:
+        st.info("Explain Like I'm 5 (No Math!)", icon="💡")
+
+    noise_col, noise_info = st.sidebar.columns([3, 1])
+    with noise_col:
+        noisy_simulation = st.toggle("🌩️ Hardware Noise", value=st.session_state.get("noisy_simulation", False))
+        if noisy_simulation != st.session_state.get("noisy_simulation"):
+            st.session_state["noisy_simulation"] = noisy_simulation
+            st.rerun()
+    with noise_info:
+        st.warning("Simulate real-world quantum decoherence", icon="⚠️")
 
 
 # ── Main ──
@@ -877,13 +768,20 @@ render_cognitive_core_sidebar()
 
 render_quantum_field()
 
-tab_learn, tab_compose, tab_sandbox = st.tabs(["⁄ ⁄Learn⁄ ⁄", "⁄ ⁄Compose⁄ ⁄", "⁄ ⁄Sandbox⁄ ⁄"])
+tab_learn, tab_compose, tab_quests, tab_chat, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🎯 Quests", "💬 A.C.E. Chat", "🧪 Sandbox"])
 
 with tab_learn:
     render_curriculum()
 
 with tab_compose:
     render_composer()
+
+with tab_quests:
+    q_engine = build_engine()
+    render_quest_tab(q_engine)
+
+with tab_chat:
+    render_chat()
 
 with tab_sandbox:
     render_sandbox()

@@ -17,29 +17,24 @@ export default function Home() {
     { id: "g1", gate: "H", target: 0 },
     { id: "g2", gate: "CNOT", target: 1, control: 0 },
   ]);
-  const [activeStep, setActiveStep] = useState(1); // Pointing to current end by default
+  const [activeStep, setActiveStep] = useState(1);
   const [latestGateDesc, setLatestGateDesc] = useState<string | null>("CNOT");
 
-  // Keep activeStep clamped to current gate count
   const effectiveStep = Math.min(activeStep, gates.length - 1);
 
-  // Gates evaluated up to the timeline scrubber position
   const activeGates = useMemo(() => {
     if (gates.length === 0 || effectiveStep < 0) return [];
     return gates.slice(0, effectiveStep + 1);
   }, [gates, effectiveStep]);
 
-  // Real-time quantum simulation output
   const simResult = useMemo(() => {
     return simulateCircuit(numQubits, activeGates, noisy);
   }, [numQubits, activeGates, noisy]);
 
-  // Full circuit simulation (for export & metrics)
   const fullSimResult = useMemo(() => {
     return simulateCircuit(numQubits, gates, noisy);
   }, [numQubits, gates, noisy]);
 
-  // Handlers
   const handleAddGate = (op: Omit<GateOp, "id">) => {
     const newOp: GateOp = {
       ...op,
@@ -113,7 +108,7 @@ export default function Home() {
         presetGates = [
           { id: "gr1", gate: "H", target: 0 },
           { id: "gr2", gate: "H", target: 1 },
-          { id: "gr3", gate: "Z", target: 1 }, // Oracle
+          { id: "gr3", gate: "Z", target: 1 },
           { id: "gr4", gate: "H", target: 0 },
           { id: "gr5", gate: "H", target: 1 },
         ];
@@ -134,8 +129,8 @@ export default function Home() {
     .join(" → ");
 
   return (
-    <div className="min-h-screen bg-background text-hud-text flex flex-col font-sans">
-      {/* Top HUD Telemetry Header */}
+    <div className="min-h-screen bg-paper text-ink flex flex-col font-sans">
+      {/* Notebook Header */}
       <HeaderHUD
         numQubits={numQubits}
         onChangeNumQubits={(n) => {
@@ -149,11 +144,11 @@ export default function Home() {
         activeBasisCount={activeBasisCount}
       />
 
-      {/* Main Laboratory Grid */}
+      {/* Main Laboratory Notebook */}
       <main className="max-w-7xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col gap-6">
-        {/* Upper Workspace: 3D Bloch Sphere + Waveform Oscilloscope */}
+        {/* Upper Workspace: Bloch Sphere + Waveform Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left: 3D Bloch Sphere (7 Cols) */}
+          {/* Left: 3D Bloch Sphere */}
           <div className="lg:col-span-7 flex flex-col">
             <BlochSphere3D
               blochCoords={simResult.blochAngles}
@@ -163,7 +158,7 @@ export default function Home() {
             />
           </div>
 
-          {/* Right: Waveform Oscilloscope & Phase Clocks (5 Cols) */}
+          {/* Right: Waveform Analysis */}
           <div className="lg:col-span-5 flex flex-col">
             <WaveformOscilloscope
               statevector={simResult.statevector}
@@ -172,9 +167,9 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Lower Workspace: Circuit Composer (8 Cols) + Copilot/Quests (4 Cols) */}
+        {/* Lower Workspace: Circuit Composer + Exercises/Copilot */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Circuit Composer Wire Board (7 Cols) */}
+          {/* Circuit Composer */}
           <div className="lg:col-span-7 flex flex-col gap-6">
             <CircuitComposer
               gates={gates}
@@ -190,9 +185,8 @@ export default function Home() {
             />
           </div>
 
-          {/* Right Dock: Quests & Socratic AI Copilot (5 Cols) */}
+          {/* Right: Exercises & Socratic Dialogue */}
           <div className="lg:col-span-5 flex flex-col gap-6">
-            {/* Quest Objectives */}
             <QuestManager
               statevector={simResult.statevector}
               onLoadQuestRequirements={(qReq) => {
@@ -200,7 +194,6 @@ export default function Home() {
               }}
             />
 
-            {/* Socratic AI Copilot Terminal */}
             <SocraticCopilot
               latestGate={latestGateDesc}
               activeQubit={activeQubit}
@@ -210,17 +203,17 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Laboratory Footer */}
-      <footer className="w-full bg-surface-200/80 border-t border-hud-border/20 py-3 px-6 text-center font-mono text-[11px] text-hud-muted flex flex-wrap justify-between items-center gap-2">
-        <div>
-          Qiskit Intuition Lab · Physics-Inspired Quantum Visualization
+      {/* Notebook Footer */}
+      <footer className="w-full bg-paper-warm border-t border-paper-ruled py-3 px-6 text-center font-sans text-xs text-ink-faint flex flex-wrap justify-between items-center gap-2">
+        <div className="font-serif italic">
+          Qiskit Intuition — Interactive Quantum Laboratory Notebook
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-quantum-cyan">Qiskit 1.0+ Compatible</span>
-          <span>•</span>
-          <span className="text-quantum-gold">Three.js 3D Engine</span>
-          <span>•</span>
-          <span className="text-quantum-green">Client Matrix Solver</span>
+        <div className="flex items-center gap-3 font-mono text-[11px]">
+          <span className="text-ink-blue">Qiskit 1.0+</span>
+          <span className="text-pencil">·</span>
+          <span className="text-ink-amber">Three.js Engine</span>
+          <span className="text-pencil">·</span>
+          <span className="text-ink-teal">Client Matrix Solver</span>
         </div>
       </footer>
     </div>

@@ -1,17 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GateOp } from "@/lib/quantum_simulator";
+import { quantumAudio } from "@/lib/quantum_audio";
 import {
   Play,
+  Pause,
   RotateCcw,
   Trash2,
   Copy,
   Check,
   Code2,
-  Zap,
-  Sliders,
   Sparkles,
+  Download,
 } from "lucide-react";
 
 interface CircuitComposerProps {
@@ -28,17 +29,17 @@ interface CircuitComposerProps {
 }
 
 const GATE_DEFINITIONS = [
-  { gate: "H", name: "Hadamard", color: "bg-quantum-cyan text-background", desc: "Superposition creator" },
-  { gate: "X", name: "Pauli-X", color: "bg-quantum-coral text-white", desc: "Bit flip (NOT)" },
-  { gate: "Y", name: "Pauli-Y", color: "bg-quantum-coral/80 text-white", desc: "Bit & phase flip" },
-  { gate: "Z", name: "Pauli-Z", color: "bg-quantum-gold text-background", desc: "Phase flip (|1⟩ → -|1⟩)" },
-  { gate: "S", name: "S Gate", color: "bg-amber-400 text-background", desc: "π/2 Phase rotation" },
-  { gate: "T", name: "T Gate", color: "bg-quantum-green text-background", desc: "π/4 Universal gate" },
-  { gate: "RX", name: "Rx(θ)", color: "bg-purple-500 text-white", desc: "X-axis rotation" },
-  { gate: "RY", name: "Ry(θ)", color: "bg-purple-500 text-white", desc: "Y-axis rotation" },
-  { gate: "RZ", name: "Rz(θ)", color: "bg-purple-500 text-white", desc: "Z-axis rotation" },
-  { gate: "CNOT", name: "CNOT", color: "bg-sky-400 text-background", desc: "2-Qubit Entangler" },
-  { gate: "SWAP", name: "SWAP", color: "bg-indigo-400 text-white", desc: "State Exchanger" },
+  { gate: "H", name: "Hadamard", color: "bg-ink-blue text-white", desc: "Superposition |+⟩" },
+  { gate: "X", name: "Pauli-X", color: "bg-ink-red text-white", desc: "Bit flip (NOT)" },
+  { gate: "Y", name: "Pauli-Y", color: "bg-ink-red/80 text-white", desc: "Bit & Phase flip" },
+  { gate: "Z", name: "Pauli-Z", color: "bg-ink-amber text-white", desc: "Phase flip (|1⟩ → -|1⟩)" },
+  { gate: "S", name: "S Gate", color: "bg-ink-amber/80 text-ink", desc: "π/2 Phase rotation" },
+  { gate: "T", name: "T Gate", color: "bg-ink-teal text-white", desc: "π/4 Universal gate" },
+  { gate: "RX", name: "Rx(θ)", color: "bg-ink-light text-white", desc: "X-axis rotation" },
+  { gate: "RY", name: "Ry(θ)", color: "bg-ink-light text-white", desc: "Y-axis rotation" },
+  { gate: "RZ", name: "Rz(θ)", color: "bg-ink-light text-white", desc: "Z-axis rotation" },
+  { gate: "CNOT", name: "CNOT", color: "bg-ink-blue/80 text-white", desc: "2-Qubit Entangler" },
+  { gate: "SWAP", name: "SWAP", color: "bg-ink text-white", desc: "State Exchanger" },
 ] as const;
 
 export const CircuitComposer: React.FC<CircuitComposerProps> = ({
@@ -55,11 +56,28 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
   const [selectedGate, setSelectedGate] = useState<GateOp["gate"]>("H");
   const [targetQubit, setTargetQubit] = useState(0);
   const [controlQubit, setControlQubit] = useState(1);
-  const [rotationAngle, setRotationAngle] = useState(0.5); // multiples of pi
+  const [rotationAngle, setRotationAngle] = useState(0.5);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Auto-play timeline animation
+  useEffect(() => {
+    if (!isPlaying || gates.length === 0) return;
+
+    const timer = setInterval(() => {
+      onSelectStep((activeStep + 1) % gates.length);
+      const currentGate = gates[(activeStep + 1) % gates.length];
+      if (currentGate) {
+        quantumAudio.playGatePulse(currentGate.gate);
+      }
+    }, 850);
+
+    return () => clearInterval(timer);
+  }, [isPlaying, activeStep, gates, onSelectStep]);
 
   const handleAdd = () => {
+    quantumAudio.playGatePulse(selectedGate);
     onAddGate({
       gate: selectedGate,
       target: targetQubit,
@@ -77,27 +95,35 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const handleDownload = () => {
+    const blob = new Blob([qiskitCode], { type: "text/x-python" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "quantum_circuit_qiskit.py";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const maxSteps = Math.max(gates.length + 3, 8);
 
   return (
-    <div className="w-full bg-gradient-to-b from-surface-100/90 to-surface-300/90 rounded-xl border border-hud-border/40 overflow-hidden shadow-2xl backdrop-blur-md flex flex-col">
-      {/* Top Header & Presets Bar */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-surface-200/90 border-b border-hud-border/30 gap-3">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-quantum-cyan animate-pulse" />
-          <span className="font-mono text-xs font-bold tracking-wider text-quantum-cyan uppercase">
-            Quantum Circuit Timeline
-          </span>
-        </div>
+    <div className="paper-card w-full rounded-2xl overflow-hidden flex flex-col">
+      {/* Top Header & Presets */}
+      <div className="flex flex-wrap items-center justify-between px-5 py-4 border-b border-pencil/30 gap-3 bg-paper-warm">
+        <h2 className="section-title text-ink m-0">Circuit Composer</h2>
 
         {/* Preset Experiments */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 text-xs font-mono">
-          <span className="text-hud-muted mr-1 text-[11px]">Presets:</span>
+          <span className="text-ink-light mr-1 text-[11px]">Lab Presets:</span>
           {["Bell State", "Superposition", "GHZ 3-Qubit", "Quantum Teleportation", "Grover"].map((p) => (
             <button
               key={p}
-              onClick={() => onLoadPreset(p)}
-              className="px-2.5 py-1 rounded bg-surface-50 hover:bg-quantum-cyan/20 text-hud-text hover:text-quantum-cyan border border-hud-subtle/30 text-[11px] transition-all whitespace-nowrap"
+              onClick={() => {
+                onLoadPreset(p);
+                quantumAudio.playGatePulse("CNOT");
+              }}
+              className="ink-btn px-3 py-1 text-[11px] whitespace-nowrap"
             >
               {p}
             </button>
@@ -105,47 +131,70 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          {/* Play/Pause Auto-Scrubber */}
           <button
-            onClick={onUndoGate}
+            onClick={() => setIsPlaying(!isPlaying)}
+            disabled={gates.length <= 1}
+            className={`ink-btn px-3 py-1.5 font-mono text-xs flex items-center gap-1.5 transition-all ${
+              isPlaying
+                ? "bg-ink-teal text-white border-transparent"
+                : "disabled:opacity-40"
+            }`}
+          >
+            {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            <span>{isPlaying ? "Pause" : "Play Flow"}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onUndoGate();
+              quantumAudio.playGatePulse("Z");
+            }}
             disabled={gates.length === 0}
-            className="p-1.5 rounded bg-surface-50 hover:bg-surface-50/80 text-hud-text disabled:opacity-40 text-xs flex items-center gap-1 border border-hud-subtle/30"
+            className="ink-btn p-1.5 disabled:opacity-40"
             title="Undo last gate"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Undo</span>
           </button>
+
           <button
-            onClick={onResetCircuit}
+            onClick={() => {
+              onResetCircuit();
+              quantumAudio.playGatePulse("X");
+            }}
             disabled={gates.length === 0}
-            className="p-1.5 rounded bg-surface-50 hover:bg-quantum-coral/20 text-hud-text hover:text-quantum-coral disabled:opacity-40 text-xs flex items-center gap-1 border border-hud-subtle/30"
+            className="ink-btn p-1.5 disabled:opacity-40 hover:text-ink-red"
             title="Reset Circuit"
           >
             <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset</span>
           </button>
+
           <button
             onClick={() => setShowCodeModal(!showCodeModal)}
-            className="px-2.5 py-1.5 rounded bg-quantum-cyan text-background font-mono text-xs font-bold flex items-center gap-1.5 hover:shadow-lg hover:shadow-quantum-cyan/20 transition-all"
+            className="ink-btn px-3 py-1.5 font-mono text-xs flex items-center gap-1.5"
           >
             <Code2 className="w-3.5 h-3.5" />
-            <span>Qiskit Code</span>
+            <span>Python Export</span>
           </button>
         </div>
       </div>
 
       {/* Visual Circuit Schematic Matrix */}
-      <div className="p-4 overflow-x-auto relative min-h-[220px] bg-background/40">
+      <div className="ruled-bg p-5 overflow-x-auto relative min-h-[240px]">
         {/* Time indices */}
-        <div className="flex items-center ml-12 mb-3 gap-3 font-mono text-[10px] text-hud-muted">
+        <div className="flex items-center ml-14 mb-4 gap-3 font-mono text-[11px] text-ink-light">
           {Array.from({ length: maxSteps }).map((_, stepIdx) => (
             <button
               key={stepIdx}
-              onClick={() => onSelectStep(stepIdx)}
-              className={`w-11 text-center py-0.5 rounded transition-all ${
+              onClick={() => {
+                onSelectStep(stepIdx);
+                quantumAudio.playGatePulse("S");
+              }}
+              className={`w-12 text-center py-1 rounded transition-all ${
                 activeStep === stepIdx
-                  ? "bg-quantum-cyan text-background font-bold"
-                  : "hover:text-quantum-cyan hover:bg-surface-50"
+                  ? "text-ink-blue font-bold border-b border-ink-blue"
+                  : "hover:text-ink"
               }`}
             >
               t{stepIdx}
@@ -154,18 +203,20 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
         </div>
 
         {/* Qubit Wires */}
-        <div className="flex flex-col gap-6 relative">
+        <div className="flex flex-col gap-7 relative">
           {Array.from({ length: numQubits }).map((_, q) => (
-            <div key={q} className="flex items-center relative h-10">
-              {/* Qubit wire label */}
-              <div className="w-10 font-mono text-xs font-bold text-quantum-cyan shrink-0 flex items-center gap-1">
+            <div key={q} className="flex items-center relative h-11">
+              {/* Qubit label */}
+              <div className="w-12 font-serif text-sm font-bold text-ink shrink-0 flex items-center gap-1.5">
                 <span>q{q}</span>
-                <span className="text-[10px] text-hud-muted font-normal">|0⟩</span>
+                <span className="text-[11px] text-ink-light font-mono">
+                  |0⟩
+                </span>
               </div>
 
-              {/* Horizontal Wire Line */}
-              <div className="flex-1 h-[1.5px] bg-quantum-cyan/25 relative flex items-center gap-3 pl-2">
-                {/* Gates on wire */}
+              {/* Wire Line */}
+              <div className="flex-1 h-[1px] bg-pencil relative flex items-center gap-3 pl-2">
+                {/* Gate Slots */}
                 {Array.from({ length: maxSteps }).map((_, stepIdx) => {
                   const gateAtStep = gates[stepIdx];
                   const isCurrent = activeStep === stepIdx;
@@ -175,12 +226,15 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
                     return (
                       <div
                         key={stepIdx}
-                        onClick={() => onSelectStep(stepIdx)}
-                        className={`w-11 h-9 rounded border border-dashed border-quantum-cyan/15 hover:border-quantum-cyan/50 cursor-pointer flex items-center justify-center transition-all ${
-                          isCurrent ? "bg-quantum-cyan/10 ring-1 ring-quantum-cyan" : ""
+                        onClick={() => {
+                          onSelectStep(stepIdx);
+                          quantumAudio.playGatePulse("S");
+                        }}
+                        className={`w-12 h-10 rounded-md border border-dashed border-pencil hover:border-ink cursor-pointer flex items-center justify-center transition-all bg-paper/50 ${
+                          isCurrent ? "border-solid border-ink-blue bg-paper border-2" : ""
                         }`}
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-quantum-cyan/20" />
+                        <div className="w-1 h-1 rounded-full bg-pencil/50" />
                       </div>
                     );
                   }
@@ -190,25 +244,23 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
                   const is2Qubit = gateAtStep.gate === "CNOT" || gateAtStep.gate === "SWAP";
 
                   if (isTarget) {
+                    const gateDef = GATE_DEFINITIONS.find(g => g.gate === gateAtStep.gate);
                     return (
                       <div
                         key={stepIdx}
-                        onClick={() => onSelectStep(stepIdx)}
-                        className={`w-11 h-9 rounded px-1 flex flex-col items-center justify-center font-mono font-bold text-xs shadow-lg cursor-pointer transition-all transform hover:scale-105 ${
-                          gateAtStep.gate === "H"
-                            ? "bg-quantum-cyan text-background shadow-quantum-cyan/20"
-                            : gateAtStep.gate === "X"
-                            ? "bg-quantum-coral text-white shadow-quantum-coral/20"
-                            : gateAtStep.gate === "CNOT"
-                            ? "bg-sky-400 text-background"
-                            : "bg-surface-50 text-quantum-cyan border border-quantum-cyan/40"
-                        } ${!isPast ? "opacity-35" : "opacity-100"} ${
-                          isCurrent ? "ring-2 ring-quantum-gold ring-offset-2 ring-offset-background" : ""
+                        onClick={() => {
+                          onSelectStep(stepIdx);
+                          quantumAudio.playGatePulse(gateAtStep.gate);
+                        }}
+                        className={`w-12 h-10 rounded-md border border-ink/20 flex flex-col items-center justify-center font-serif text-sm cursor-pointer transition-all transform hover:scale-105 ${
+                          gateDef?.color || "bg-paper text-ink"
+                        } ${!isPast ? "opacity-40" : "opacity-100"} ${
+                          isCurrent ? "border-2 border-ink-blue scale-105" : ""
                         }`}
                       >
                         <span>{gateAtStep.gate}</span>
                         {gateAtStep.angle !== undefined && (
-                          <span className="text-[8px] font-normal">
+                          <span className="text-[9px] font-mono font-normal">
                             {(gateAtStep.angle / Math.PI).toFixed(2)}π
                           </span>
                         )}
@@ -220,13 +272,16 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
                     return (
                       <div
                         key={stepIdx}
-                        onClick={() => onSelectStep(stepIdx)}
-                        className={`w-11 h-9 flex items-center justify-center cursor-pointer ${
-                          !isPast ? "opacity-35" : "opacity-100"
+                        onClick={() => {
+                          onSelectStep(stepIdx);
+                          quantumAudio.playGatePulse("CNOT");
+                        }}
+                        className={`w-12 h-10 flex items-center justify-center cursor-pointer ${
+                          !isPast ? "opacity-40" : "opacity-100"
                         }`}
                       >
-                        <div className="w-4 h-4 rounded-full bg-quantum-cyan shadow-md shadow-quantum-cyan/50 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-background" />
+                        <div className="w-3 h-3 rounded-full bg-ink flex items-center justify-center">
+                          {gateAtStep.gate === "SWAP" && <div className="w-1 h-1 rounded-full bg-paper" />}
                         </div>
                       </div>
                     );
@@ -236,9 +291,9 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
                     <div
                       key={stepIdx}
                       onClick={() => onSelectStep(stepIdx)}
-                      className="w-11 h-9 flex items-center justify-center cursor-pointer"
+                      className="w-12 h-10 flex items-center justify-center cursor-pointer"
                     >
-                      <div className="w-1 h-1 rounded-full bg-quantum-cyan/20" />
+                      <div className="w-1 h-1 rounded-full bg-pencil/30" />
                     </div>
                   );
                 })}
@@ -248,18 +303,21 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
         </div>
       </div>
 
-      {/* Interactive Gate Palette & Controls Bar */}
-      <div className="p-4 bg-surface-200/90 border-t border-hud-border/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      {/* Interactive Gate Palette Bar */}
+      <div className="p-4 bg-paper-warm border-t border-pencil/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         {/* Gate Selection Chips */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           {GATE_DEFINITIONS.map((def) => (
             <button
               key={def.gate}
-              onClick={() => setSelectedGate(def.gate)}
-              className={`px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all ${
+              onClick={() => {
+                setSelectedGate(def.gate);
+                quantumAudio.playGatePulse(def.gate);
+              }}
+              className={`key-btn px-3 py-1.5 font-serif text-sm transition-all ${
                 selectedGate === def.gate
-                  ? `${def.color} shadow-lg scale-105 ring-2 ring-quantum-cyan/50`
-                  : "bg-surface-50 text-hud-text hover:bg-surface-50/80 border border-hud-subtle/30"
+                  ? "bg-ink-blue text-white border-transparent"
+                  : ""
               }`}
               title={def.desc}
             >
@@ -272,11 +330,11 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-end">
           {/* Target selector */}
           <div className="flex items-center gap-1.5 text-xs font-mono">
-            <span className="text-hud-muted">Target:</span>
+            <span className="text-ink-light">Target:</span>
             <select
               value={targetQubit}
               onChange={(e) => setTargetQubit(Number(e.target.value))}
-              className="bg-surface-300 border border-hud-subtle/50 text-quantum-cyan rounded px-2 py-1 outline-none font-bold"
+              className="bg-paper border border-pencil text-ink rounded-md px-2 py-1 outline-none font-bold focus:border-ink-blue"
             >
               {Array.from({ length: numQubits }).map((_, q) => (
                 <option key={q} value={q}>
@@ -286,14 +344,14 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
             </select>
           </div>
 
-          {/* Control selector for 2-qubit gates */}
+          {/* Control selector */}
           {(selectedGate === "CNOT" || selectedGate === "SWAP") && (
             <div className="flex items-center gap-1.5 text-xs font-mono">
-              <span className="text-hud-muted">Control:</span>
+              <span className="text-ink-light">Control:</span>
               <select
                 value={controlQubit}
                 onChange={(e) => setControlQubit(Number(e.target.value))}
-                className="bg-surface-300 border border-hud-subtle/50 text-quantum-gold rounded px-2 py-1 outline-none font-bold"
+                className="bg-paper border border-pencil text-ink rounded-md px-2 py-1 outline-none font-bold focus:border-ink-blue"
               >
                 {Array.from({ length: numQubits })
                   .filter((_, q) => q !== targetQubit)
@@ -306,10 +364,10 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
             </div>
           )}
 
-          {/* Angle Slider for parameterized rotations */}
+          {/* Angle Slider */}
           {(selectedGate === "RX" || selectedGate === "RY" || selectedGate === "RZ") && (
-            <div className="flex items-center gap-2 text-xs font-mono">
-              <span className="text-hud-muted">θ:</span>
+            <div className="flex items-center gap-2 text-xs font-mono bg-paper px-3 py-1 rounded-md border border-pencil">
+              <span className="text-ink-light">θ:</span>
               <input
                 type="range"
                 min="-2"
@@ -317,39 +375,48 @@ export const CircuitComposer: React.FC<CircuitComposerProps> = ({
                 step="0.125"
                 value={rotationAngle}
                 onChange={(e) => setRotationAngle(Number(e.target.value))}
-                className="w-24 accent-quantum-cyan"
+                className="w-24 accent-ink-blue"
               />
-              <span className="text-quantum-gold font-bold">{rotationAngle}π</span>
+              <span className="text-ink font-bold">{rotationAngle}π</span>
             </div>
           )}
 
           {/* Add Gate CTA */}
           <button
             onClick={handleAdd}
-            className="px-4 py-2 rounded-lg bg-quantum-green hover:bg-quantum-green/90 text-background font-mono text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-quantum-green/20 hover:scale-105 transition-all"
+            className="ink-btn bg-ink text-white hover:bg-ink-light hover:text-white px-5 py-2 font-mono text-xs flex items-center gap-1.5"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-4 h-4" />
             <span>Apply {selectedGate}</span>
           </button>
         </div>
       </div>
 
-      {/* Qiskit Code Modal / Drawer */}
+      {/* Qiskit Code Modal */}
       {showCodeModal && (
-        <div className="p-4 bg-surface-300 border-t border-hud-border/40 font-mono text-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-quantum-cyan font-bold flex items-center gap-1.5">
-              <Code2 className="w-4 h-4" /> Python (Qiskit 1.0+ Equivalent)
+        <div className="p-5 bg-paper-deep border-t border-pencil/30 font-mono text-xs">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-ink font-bold flex items-center gap-2">
+              <Code2 className="w-4 h-4" /> Exported Qiskit 1.0+ Python Script
             </span>
-            <button
-              onClick={handleCopy}
-              className="px-2.5 py-1 rounded bg-surface-50 hover:bg-surface-50/80 text-hud-text flex items-center gap-1 border border-hud-subtle/30"
-            >
-              {copiedCode ? <Check className="w-3 h-3 text-quantum-green" /> : <Copy className="w-3 h-3" />}
-              <span>{copiedCode ? "Copied" : "Copy Code"}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownload}
+                className="ink-btn px-3 py-1 flex items-center gap-1.5"
+              >
+                <Download className="w-3 h-3" />
+                <span>Download .py</span>
+              </button>
+              <button
+                onClick={handleCopy}
+                className="ink-btn px-3 py-1 flex items-center gap-1.5"
+              >
+                {copiedCode ? <Check className="w-3 h-3 text-ink-teal" /> : <Copy className="w-3 h-3" />}
+                <span>{copiedCode ? "Copied" : "Copy Code"}</span>
+              </button>
+            </div>
           </div>
-          <pre className="p-3 rounded-lg bg-background text-hud-text overflow-x-auto text-[11px] border border-hud-subtle/30">
+          <pre className="p-4 rounded-md bg-paper text-ink overflow-x-auto text-xs border border-pencil leading-relaxed shadow-inner">
             {qiskitCode}
           </pre>
         </div>

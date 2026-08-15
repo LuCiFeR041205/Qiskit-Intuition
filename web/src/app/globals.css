@@ -1,82 +1,222 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Paper Foundation ─── */
 :root {
-  --background: #050811;
-  --foreground: #E2EDF8;
-  --cyan: #00F0FF;
-  --gold: #FFB800;
-  --green: #00FF9D;
-  --coral: #FF3366;
+  --paper: #FAF8F3;
+  --paper-warm: #F5F0E8;
+  --paper-ruled: #E8E2D6;
+  --ink: #2C2C2C;
+  --ink-light: #6B6560;
+  --ink-faint: #A39E96;
+  --ink-blue: #1B4B8A;
+  --ink-red: #C13628;
+  --ink-teal: #1A7A6D;
+  --ink-amber: #B8860B;
+  --pencil: #8B8680;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: 'Source Sans 3', system-ui, sans-serif;
   overflow-x: hidden;
-  background-image: 
-    radial-gradient(ellipse at 50% 0%, rgba(0, 240, 255, 0.07) 0%, transparent 60%),
-    radial-gradient(ellipse at 85% 90%, rgba(157, 78, 221, 0.05) 0%, transparent 50%),
-    linear-gradient(rgba(5, 8, 17, 0.95), rgba(5, 8, 17, 0.95)),
-    repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(0, 240, 255, 0.008) 2px, rgba(0, 240, 255, 0.008) 4px);
+  /* Subtle paper grain texture via CSS noise */
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E"),
+    linear-gradient(var(--paper), var(--paper));
   background-attachment: fixed;
 }
 
-/* Custom Tactical Scrollbars */
+/* ─── Paper Scrollbars ─── */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #080E1A;
+  background: var(--paper);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 240, 255, 0.25);
-  border-radius: 3px;
+  background: var(--pencil);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 240, 255, 0.5);
+  background: var(--ink-light);
 }
 
-/* Glassmorphism Panel Tokens */
-.glass-panel {
-  background: linear-gradient(135deg, rgba(11, 19, 34, 0.85), rgba(8, 14, 26, 0.9));
-  border: 1px solid rgba(0, 240, 255, 0.2);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 240, 255, 0.03);
-  backdrop-filter: blur(12px);
+/* ─── Paper Card ─── */
+.paper-card {
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-ruled);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-/* HUD Corner Brackets */
-.hud-box {
+.paper-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+/* ─── Notebook Section ─── */
+.notebook-section {
   position: relative;
+  padding-left: 2rem;
 }
 
-.hud-box::before,
-.hud-box::after {
+.notebook-section::before {
   content: '';
   position: absolute;
-  width: 6px;
-  height: 6px;
-  pointer-events: none;
+  left: 1.25rem;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ink-red);
+  opacity: 0.2;
 }
 
-.hud-box::before {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid var(--cyan);
-  border-left: 2px solid var(--cyan);
+/* ─── Section Title (§ headers) ─── */
+.section-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.hud-box::after {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 2px solid var(--cyan);
-  border-right: 2px solid var(--cyan);
+.section-title::before {
+  content: '§';
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+/* ─── Ruled Lines Background ─── */
+.ruled-bg {
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 27px,
+    var(--paper-ruled) 27px,
+    var(--paper-ruled) 28px
+  );
+}
+
+/* ─── Ink Button ─── */
+.ink-btn {
+  font-family: 'Source Sans 3', sans-serif;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 3px;
+  border: 1px solid var(--paper-ruled);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ink-btn:hover {
+  background: var(--paper-warm);
+  border-color: var(--pencil);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.ink-btn:active {
+  transform: translateY(1px);
+}
+
+.ink-btn.active {
+  background: var(--ink-blue);
+  color: white;
+  border-color: var(--ink-blue);
+}
+
+/* ─── Typewriter Key (for gate palette) ─── */
+.key-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.75rem;
+  border-radius: 3px;
+  border: 1px solid var(--paper-ruled);
+  border-bottom-width: 2px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+}
+
+.key-btn:hover {
+  background: var(--paper-warm);
+  border-color: var(--pencil);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 2px rgba(0,0,0,0.08);
+}
+
+.key-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+  border-bottom-width: 1px;
+}
+
+/* ─── Graph Paper Grid ─── */
+.graph-paper {
+  background-image:
+    linear-gradient(var(--paper-ruled) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-ruled) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* ─── Dog-ear fold for cards ─── */
+.dog-ear {
+  position: relative;
+  overflow: hidden;
+}
+
+.dog-ear::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: linear-gradient(135deg, var(--paper) 50%, var(--paper-ruled) 50%);
+}
+
+/* ─── Pencil-style Divider ─── */
+.pencil-divider {
+  border: none;
+  height: 1px;
+  background: var(--paper-ruled);
+  margin: 1rem 0;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: rgba(27, 75, 138, 0.15);
+  color: var(--ink);
+}
+
+/* ─── Focus States ─── */
+*:focus-visible {
+  outline: 2px solid var(--ink-blue);
+  outline-offset: 2px;
 }
