@@ -133,7 +133,11 @@ def calculate_fidelity(state1, state2):
     return float(fidelity)
 
 def get_quests():
-    return QUESTS
+    # Keep the public progression deliberately short and testable.  The first
+    # three challenges cover bit flips, superposition, and entanglement; later
+    # draft challenges remain above for future curriculum work but are not
+    # published until they have complete solution and progression coverage.
+    return QUESTS[:3]
 
 def render_quest_tab(engine):
     st.markdown("## Quantum Quests")

@@ -2,90 +2,111 @@
 title: Qiskit Intuition
 emoji: ⚛️
 colorFrom: blue
-colorTo: purple
+colorTo: green
 sdk: streamlit
 app_file: app.py
 pinned: false
 ---
 
-# Qiskit Intuition Lab ⚛️
+# Qiskit Intuition
 
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-[![Qiskit](https://img.shields.io/badge/Qiskit-%E2%89%A51.0-blue)](https://qiskit.org/)
+Qiskit Intuition is a focused quantum-computing course built around one learning loop:
 
-**Note: This is an experimental project in active development.** We encourage anyone interested in quantum computing, frontend development, or AI agents to contribute.
+1. Learn a precise concept.
+2. Predict what a circuit will do.
+3. Build and simulate it.
+4. Compare the result with runnable Qiskit code.
+5. Explain the outcome or ask for targeted code help.
 
-This project makes quantum education **intuitive**. It is an immersive, physics-first quantum learning workspace: a Streamlit frontend for building circuits visually and watching qubits move in 3D, backed by a decoupled FastAPI service for simulation, code execution, and offline teaching helpers.
+The project includes a Streamlit app for Hugging Face Spaces and a separate Next.js client. Both work without a hosted model or external simulator.
 
-## Architecture (CPRE)
+## Public learning experience
 
-The app follows a **Composer → Physics → Readout → Explain** flow, decoupled into a frontend and a backend:
+- **Course:** six short lessons covering measurement, superposition, phase, entanglement, algorithms, and hardware noise.
+- **Circuit lab:** a local Qiskit simulator with gate-by-gate construction, probability readouts, reduced-state information, and exact statevectors.
+- **Code lab:** a restricted Python/Qiskit workspace with stdout, figures, and actionable error output.
+- **Code coach:** context-aware help that receives the current lesson, circuit, code, and latest traceback. It detects common Qiskit 1.x migration issues and explains real code line by line.
+- **Practice:** observable circuit targets with hints and automatic checking.
+- **Content Studio:** edit lesson copy in the browser and export/import one content file.
 
-- **Frontend (`frontend/streamlit_app.py`)** — Streamlit UI: gate palette, circuit composer, Bloch spheres, probability bars, curriculum roadmap, AI teaching lab, and the Quantum Quests tab.
-- **Backend (`backend/`, FastAPI)** — `core/quantum_engine.py` (Qiskit statevector + noise simulation, Bloch angles, Qiskit export), `core/quest_engine.py` (quest targets + fidelity grading), `core/notebook_engine.py` (sandboxed code execution), and routers for `/simulate`, `/execute`, and `/agent/*`.
-- **Educational agents (`agents/`, `frontend/agents/`)** — offline tutor, Feynman explainer, code generator, and Socratic checker. No hosted model key required for the public app.
+## Hugging Face Spaces
 
-## Features
+The repository root is a ready-to-run Streamlit Space. Simulation, safe code execution, and the built-in teaching engine all run in the same process, so Spaces does not need a second API service.
 
-- **3D quantum field interface:** a physics-inspired Three.js scene frames the app as an interactive quantum lab.
-- **Composer-style circuit builder:** add H, X, Y, Z, S, T, CNOT, Rx, Ry, Rz across multiple qubits.
-- **Live Bloch sphere visualization:** each qubit gets an interactive 3D Bloch sphere with coordinates, phase angles, and purity readouts.
-- **Measurement probabilities:** basis-state probabilities update as the circuit changes (with optional noisy simulation).
-- **Qiskit export:** every visual circuit exports as runnable Qiskit code.
-- **Quantum Quests:** graded challenges where the learner builds a circuit and the app checks fidelity against a target state.
-- **Sandbox notebook:** run short Qiskit/Python experiments and capture stdout plus Matplotlib figures.
-- **Offline AI teaching agents:** tutor, code explainer, and Socratic checkpoint helpers.
+To deploy:
 
-## Local Setup
+1. Create a Streamlit Space.
+2. Push this repository to the Space.
+3. The Space reads the YAML metadata above and starts `app.py`.
 
-Use Python 3.10+.
+For optional model-enhanced tutoring, add `GEMINI_API_KEY` as a private Space secret. Without it, the deterministic code-aware coach remains available. `GEMINI_MODEL` can override the default model name.
+
+## Editing course content
+
+Open **Content studio** in the Streamlit navigation. Changes preview immediately for the current session.
+
+To publish changes permanently:
+
+1. Download `site_content.json` from Content Studio.
+2. Replace `frontend/site_content.json` in the repository.
+3. Commit and push the file to the Space or main repository.
+
+This design keeps public visitors from modifying deployed course content.
+
+## Run locally
+
+Use Python 3.10 or newer:
 
 ```bash
-git clone https://github.com/LuCiFeR041205/Qiskit-Intuition.git
-cd Qiskit-Intuition
-
-python3 -m venv venv
-source venv/bin/activate
-
 pip install -r requirements.txt
+streamlit run app.py
+```
 
-# Frontend (Streamlit UI)
-streamlit run app.py --server.port 8502
+The optional FastAPI service exposes simulation, execution, and tutor endpoints:
 
-# Backend API (optional, in another terminal)
+```bash
 uvicorn backend.main:app --reload --port 8000
 ```
 
-Open [http://localhost:8502](http://localhost:8502). The backend serves `/health`, `/simulate`, `/execute`, and `/agent/*` on port 8000.
+## Standalone web client
 
-## Testing
+The `web` directory contains a lightweight Next.js version of the same course and circuit flow.
 
 ```bash
-pytest tests/ -v
+cd web
+npm install
+npm run dev
 ```
 
-Tests cover the backend engine (probabilities, Bloch purity, Qiskit export), the sandbox execution core, and the quest grading (every quest target is reachable and unit-norm).
+The web simulator runs entirely in the browser. To connect its Code Coach to the Python tutor API, set:
 
-## Project Structure
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Hugging Face Space origins are accepted by the API. Additional deployments can be added with the comma-separated `ALLOWED_ORIGINS` environment variable.
+
+## Tests
+
+```bash
+pytest tests -q
+node web/tests/simulator.test.mjs
+cd web && npm run build
+```
+
+The suite covers quantum probabilities and statevectors, quest fidelity, sandbox safety, code-review diagnostics, tutor context, and the browser-side simulator.
+
+## Project structure
 
 ```text
-app.py                              Entry point: launches frontend/streamlit_app.py
-backend/
-  main.py                           FastAPI app + CORS
-  core/
-    quantum_engine.py               Qiskit simulation, Bloch angles, export
-    quest_engine.py                 Quest targets + fidelity grading
-    notebook_engine.py              Sandboxed code execution
-  routers/                          simulate, execute, agents
-frontend/
-  streamlit_app.py                  Streamlit UI (composer, Bloch, quests, teaching lab)
-  components/                       bloch_sphere, circuit_composer, quantum_field, ...
-agents/  frontend/agents/           Offline teaching helpers
-tests/                             Pytest suites for engine, notebook, quests
+app.py                              Streamlit / Hugging Face entry point
+frontend/streamlit_app.py           Public learning interface
+frontend/learning_content.py        Default curriculum and practice data
+frontend/site_content.json          Editable published content configuration
+backend/core/quantum_engine.py      Qiskit simulation and export
+backend/core/notebook_engine.py     Restricted teaching sandbox
+backend/core/teaching_assistant.py  Code review, tutoring, and optional model path
+backend/routers/agents.py           Tutor and compatibility endpoints
+web/                                Standalone Next.js learning client
+tests/                              Python integration and unit tests
 ```
-
-## Notes
-
-The UI prioritizes physical intuition first, then connects every visual action back to runnable Qiskit code.
-
-**The secondary 'Qiskit-Intuition' folder is for Hugging-Faces only, and just meant to keep the site running. Please don't edit it.**

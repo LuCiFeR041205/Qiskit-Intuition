@@ -6,6 +6,8 @@ ENV/
 bin/
 lib/
 share/
+!web/src/lib/
+!web/src/lib/**
 
 # Sensitive Credentials & API Keys
 .env
@@ -33,9 +35,11 @@ dist/
 .next/
 .turbo/
 out/
+*.tsbuildinfo
 
 # Streamlit specific
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 
 # Local Hugging Face Space clone
 Qiskit-Intuition/

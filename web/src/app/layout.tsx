@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Qiskit Intuition — Interactive Quantum Laboratory Notebook",
+  title: "Qiskit Intuition — Learn quantum computing",
   description:
-    "Explore quantum mechanics through interactive 3D Bloch spheres, dynamic circuit composition, wavefunction analysis, and Socratic AI guidance — styled as a physicist's notebook.",
+    "A focused quantum computing course with an interactive circuit simulator and context-aware Qiskit code coach.",
 };
 
 export default function RootLayout({
@@ -14,9 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased" style={{ background: "#E8E2D6" }}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

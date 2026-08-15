@@ -4,9 +4,9 @@ import tempfile
 os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "qiskit-intuition-mpl"))
 
 import numpy as np
-import matplotlib.pyplot as plt
 from qiskit import QuantumCircuit
-from qiskit.quantum_info import Statevector, partial_trace, DensityMatrix
+from qiskit.quantum_info import Statevector, partial_trace
+
 
 class QuantumEngine:
     def __init__(self, num_qubits=2):
@@ -126,6 +126,7 @@ class QuantumEngine:
     def get_qiskit_code(self):
         lines = [
             "from qiskit import QuantumCircuit",
+            "from qiskit.quantum_info import Statevector",
             "",
             f"qc = QuantumCircuit({self.num_qubits})",
         ]
@@ -148,7 +149,12 @@ class QuantumEngine:
                 ctrl = control if control is not None else (1 - target)
                 lines.append(f"qc.cx({ctrl}, {target})")
 
-        lines.extend(["", "print(qc)", "qc.draw(output='mpl')"])
+        lines.extend([
+            "",
+            "state = Statevector.from_instruction(qc)",
+            "print(qc.draw(output='text'))",
+            "print(state.probabilities_dict())",
+        ])
         return "\n".join(lines)
         
     def run_simulation(self):
@@ -189,14 +195,14 @@ class QuantumEngine:
         
     def get_circuit_figure(self):
         qc = self.build_circuit()
-        dark_style = {
-            "backgroundcolor": "#050A15",
-            "textcolor": "#00F0FF",
-            "linecolor": "#00F0FF",
-            "gatetextcolor": "#050A15",
-            "gatefacecolor": "#00F0FF",
-            "barrierfacecolor": "#1A2536",
-            "creglinecolor": "#4DB8FF",
+        education_style = {
+            "backgroundcolor": "#FFFFFF",
+            "textcolor": "#17212B",
+            "linecolor": "#5D6A75",
+            "gatetextcolor": "#FFFFFF",
+            "gatefacecolor": "#087F8C",
+            "barrierfacecolor": "#DCE2E7",
+            "creglinecolor": "#5D6A75",
         }
-        fig = qc.draw(output='mpl', style=dark_style)
+        fig = qc.draw(output='mpl', style=education_style)
         return fig

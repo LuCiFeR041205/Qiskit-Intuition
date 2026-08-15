@@ -1,8 +1,9 @@
 import os
 import sys
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 
 # Ensure we are able to import from the root project directory
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -10,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Load environment variables
 load_dotenv()
 
-from backend.routers import simulate, execute, agents  # noqa: E402
+from backend.routers import agents, execute, simulate
 
 app = FastAPI(
     title="Qiskit Intuition Lab API",
@@ -26,9 +27,16 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:8501",
 ]
 
+extra_origins = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS + extra_origins,
+    allow_origin_regex=r"https://.*\.hf\.space",
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],

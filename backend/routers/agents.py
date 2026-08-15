@@ -1,18 +1,18 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+# ruff: noqa: BLE001
+
 import json
 
-from agents.router_agent import (
-    classify_intent,
-    route_and_respond,
-    AGENT_META
-)
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+from agents.base_agent import generate_stream
 from agents.composer_agent import explain_composer_action
 from agents.feynman_agent import explain_concept
 from agents.qiskit_engineer import generate_code
+from agents.router_agent import AGENT_META, classify_intent, route_and_respond
 from agents.socratic_tutor import generate_problem
-from agents.base_agent import generate_stream
+from backend.core.teaching_assistant import TutorContext, answer_tutor
 
 router = APIRouter()
 
@@ -32,6 +32,16 @@ class EvaluateRequest(BaseModel):
 class RouteRequest(BaseModel):
     user_message: str
     eli5_mode: bool = False
+
+
+class TutorRequest(BaseModel):
+    message: str
+    code: str = ""
+    execution_error: str = ""
+    gates: list[dict] = Field(default_factory=list)
+    num_qubits: int = 1
+    lesson_title: str = ""
+    use_model: bool = True
 
 def stream_sse(generator):
     for chunk in generator:
@@ -95,6 +105,22 @@ async def route_agent(req: RouteRequest):
                     yield f"event: chunk\ndata: {chunk}\n\n"
                     
         return StreamingResponse(route_stream(), media_type="text/event-stream")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tutor")
+async def tutor(req: TutorRequest):
+    """Return code-aware teaching help as JSON for web and Streamlit clients."""
+    try:
+        context = TutorContext(
+            code=req.code,
+            execution_error=req.execution_error,
+            gates=req.gates,
+            num_qubits=req.num_qubits,
+            lesson_title=req.lesson_title,
+        )
+        return answer_tutor(req.message, context=context, use_model=req.use_model)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
