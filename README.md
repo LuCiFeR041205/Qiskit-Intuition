@@ -10,24 +10,24 @@ pinned: false
 
 # Qiskit Intuition
 
-Qiskit Intuition is a focused quantum-computing course built around one learning loop:
+Qiskit Intuition is a focused quantum-computing course built around one continuous learning loop:
 
 1. Learn a precise concept.
 2. Predict what a circuit will do.
-3. Build and simulate it.
-4. Compare the result with runnable Qiskit code.
-5. Explain the outcome or ask for targeted code help.
+3. Run and modify the worked circuit in the lesson.
+4. Explain the result using the state or probabilities as evidence.
+5. Continue to the next lesson, with targeted code help available in context.
 
 The project includes a Streamlit app for Hugging Face Spaces and a separate Next.js client. Both work without a hosted model or external simulator.
 
 ## Public learning experience
 
-- **Course:** six short lessons covering measurement, superposition, phase, entanglement, algorithms, and hardware noise.
-- **Circuit lab:** a local Qiskit simulator with gate-by-gate construction, probability readouts, reduced-state information, and exact statevectors.
-- **Code lab:** a restricted Python/Qiskit workspace with stdout, figures, and actionable error output.
-- **Code coach:** context-aware help that receives the current lesson, circuit, code, and latest traceback. It detects common Qiskit 1.x migration issues and explains real code line by line.
-- **Practice:** observable circuit targets with hints and automatic checking.
-- **Content Studio:** edit lesson copy in the browser and export/import one content file.
+- **Learning path:** each lesson keeps the concept, prediction, experiment, explanation, and completion step in one guided sequence.
+- **In-lesson experiment:** a focused circuit builder, probability view, exact state, and matching Qiskit code appear only after the learner makes a prediction.
+- **Playground:** an optional open workspace switches between the visual circuit builder and restricted Qiskit code runner without affecting course progress.
+- **Code coach:** context-aware help receives the current lesson, circuit, code, and latest traceback. It detects common Qiskit 1.x migration issues and explains real code line by line.
+- **Transfer challenges:** optional circuit targets move into the playground when a learner wants more practice.
+- **Content Studio:** author controls stay outside the learner navigation and export/import one publishable content file.
 
 ## Hugging Face Spaces
 
