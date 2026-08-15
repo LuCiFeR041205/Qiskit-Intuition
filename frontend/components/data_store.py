@@ -290,3 +290,278 @@ CURRICULUM = {
         },
     },
 }
+
+
+# ── Algorithm Library ──
+# A reference shelf of landmark quantum algorithms. Each entry links back to a
+# curriculum level so learners can move from "what it is" to "how to build it".
+
+ALGORITHMS = [
+    {
+        "name": "Deutsch–Jozsa",
+        "category": "Oracle separation",
+        "difficulty": "Beginner",
+        "intuition": "Decides whether a hidden function is constant or balanced using a single query. A classical computer may need many; the quantum version always needs one.",
+        "key_gates": ["H", "X", "CNOT"],
+        "links": "Level 4: Quantum Algorithms",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "qc = QuantumCircuit(2, 1)\n"
+            "qc.x(1); qc.h(1)          # ancilla in |->\n"
+            "qc.h(0)                   # input superposition\n"
+            "qc.cx(0, 1)               # balanced oracle f(x) = x\n"
+            "qc.h(0)\n"
+            "qc.measure(0, 0)          # 0 -> constant, 1 -> balanced"
+        ),
+    },
+    {
+        "name": "Bernstein–Vazirani",
+        "category": "Oracle separation",
+        "difficulty": "Beginner",
+        "intuition": "Recovers a hidden bitstring s in one query by building the dot-product oracle and reading s straight out of the input register.",
+        "key_gates": ["H", "X", "CNOT"],
+        "links": "Level 4: Quantum Algorithms",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "qc = QuantumCircuit(3, 3)\n"
+            "qc.x(2); qc.h(2)          # ancilla in |->\n"
+            "qc.h(0); qc.h(1)\n"
+            "qc.cx(0, 2); qc.cx(1, 2)  # oracle f(x) = s.x, s = 11\n"
+            "qc.h(0); qc.h(1)\n"
+            "qc.measure([0, 1], [0, 1])"
+        ),
+    },
+    {
+        "name": "Grover Search",
+        "category": "Search & optimization",
+        "difficulty": "Intermediate",
+        "intuition": "Finds a marked item in an unsorted list of N in about sqrt(N) steps by alternating a phase-marking oracle and an inversion-about-the-mean diffuser.",
+        "key_gates": ["H", "Z", "CNOT", "S"],
+        "links": "Level 4: Quantum Algorithms · Quest: Spooky Action at a Distance",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "qc = QuantumCircuit(2)\n"
+            "qc.h([0, 1])                       # uniform superposition\n"
+            "qc.cz(0, 1)                       # oracle marks |11>\n"
+            "qc.h([0, 1]); qc.x([0, 1])\n"
+            "qc.cz(0, 1)                       # diffuser (inversion about mean)\n"
+            "qc.x([0, 1]); qc.h([0, 1])"
+        ),
+    },
+    {
+        "name": "Quantum Fourier Transform",
+        "category": "Period finding",
+        "difficulty": "Intermediate",
+        "intuition": "Converts a superposition of amplitudes into a pattern of relative phases. It is the engine inside Shor's algorithm and many phase-estimation routines.",
+        "key_gates": ["H", "S", "T", "CNOT"],
+        "links": "Level 4: Quantum Algorithms · Algorithms: Shor's Algorithm",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "import numpy as np\n"
+            "qc = QuantumCircuit(3)\n"
+            "qc.h(0); qc.cp(np.pi / 2, 0, 1); qc.cp(np.pi / 4, 0, 2)\n"
+            "qc.h(1); qc.cp(np.pi / 2, 1, 2)\n"
+            "qc.h(2)\n"
+            "qc.swap(0, 2)"
+        ),
+    },
+    {
+        "name": "Shor's Algorithm",
+        "category": "Number theory",
+        "difficulty": "Advanced",
+        "intuition": "Factors integers by finding the period of a^x mod N on a quantum computer, then finishing the job with classical number theory. The period-finding step is a QFT.",
+        "key_gates": ["H", "S", "T", "CNOT"],
+        "links": "Level 4: Quantum Algorithms · Algorithms: Quantum Fourier Transform",
+        "circuit": (
+            "# Shor = classical period finding + QFT\n"
+            "# Core quantum step: QFT on a^x mod N\n"
+            "from qiskit import QuantumCircuit\n"
+            "import numpy as np\n"
+            "N, a = 15, 7\n"
+            "qc = QuantumCircuit(4)\n"
+            "for q in range(4):\n"
+            "    qc.h(q)                 # counting register in superposition\n"
+            "# ...controlled modular exponentiation a^x mod N...\n"
+            "# ...inverse QFT on the counting register...\n"
+            "# measure -> period r -> gcd(a^(r/2) +- 1, N)"
+        ),
+    },
+    {
+        "name": "Quantum Phase Estimation",
+        "category": "Eigenvalue estimation",
+        "difficulty": "Advanced",
+        "intuition": "Estimates an unknown phase eigenvalue of a unitary by copying it into the relative phases of a superposition, then reading it back with a QFT. It powers many later algorithms.",
+        "key_gates": ["H", "S", "CNOT"],
+        "links": "Level 4: Quantum Algorithms · Algorithms: Quantum Fourier Transform",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "import numpy as np\n"
+            "qc = QuantumCircuit(2, 1)\n"
+            "qc.h(0); qc.x(1)\n"
+            "qc.cp(np.pi, 0, 1)         # unitary U with eigenphase pi\n"
+            "qc.h(0); qc.measure(0, 0)  # measured phase encodes the eigenvalue"
+        ),
+    },
+    {
+        "name": "Variational Quantum Eigensolver",
+        "category": "Hybrid NISQ",
+        "difficulty": "Intermediate",
+        "intuition": "Finds the ground-state energy of a molecule by preparing a parameterized ansatz on the quantum chip and tuning its angles with a classical optimizer.",
+        "key_gates": ["RY", "CNOT"],
+        "links": "Level 5: Hardware + Advanced Workflows",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "from qiskit.circuit import Parameter\n"
+            "theta = Parameter('theta')\n"
+            "qc = QuantumCircuit(2)\n"
+            "qc.ry(theta, 0); qc.cx(0, 1)   # hardware-efficient ansatz\n"
+            "# measure -> energy -> classical optimizer updates theta"
+        ),
+    },
+    {
+        "name": "Quantum Teleportation",
+        "category": "Communication",
+        "difficulty": "Intermediate",
+        "intuition": "Moves an unknown quantum state from one qubit to another using a shared Bell pair and two classical bits. The state itself is never copied; it is reconstructed at the destination.",
+        "key_gates": ["H", "X", "Z", "CNOT"],
+        "links": "Level 1: Quantum Foundations · Quest: Spooky Action at a Distance",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "qc = QuantumCircuit(3, 2)\n"
+            "qc.h(1); qc.cx(1, 2)        # Bell pair between q1 and q2\n"
+            "qc.cx(0, 1); qc.h(0)        # Bell measurement on the source\n"
+            "qc.measure([0, 1], [0, 1])\n"
+            "qc.cx(1, 2); qc.cz(0, 2)    # corrections at the destination"
+        ),
+    },
+    {
+        "name": "Quantum Key Distribution (BB84)",
+        "category": "Cryptography",
+        "difficulty": "Intermediate",
+        "intuition": "Distributes a secret key by sending qubits in randomly chosen bases. Any eavesdropper disturbs the states, and the disturbance shows up when Alice and Bob compare a subset of their bits.",
+        "key_gates": ["H", "Z"],
+        "links": "Level 1: Quantum Foundations · Level 5: Hardware + Advanced Workflows",
+        "circuit": (
+            "from qiskit import QuantumCircuit\n"
+            "import random\n"
+            "qc = QuantumCircuit(1, 1)\n"
+            "basis = random.choice(['Z', 'X'])\n"
+            "if basis == 'X':\n"
+            "    qc.h(0)               # send in X basis instead of Z\n"
+            "# Bob measures in a random basis; matching bases keep the key bit"
+        ),
+    },
+]
+
+
+# ── Glossary ──
+# Plain-language definitions of the terms the app uses. Kept short so they read
+# like callouts, not a textbook.
+
+GLOSSARY = {
+    "Qubit": "The basic unit of quantum information. Like a bit it reads 0 or 1 on measurement, but before that it can point anywhere on the Bloch sphere.",
+    "Superposition": "A state that is partly |0> and partly |1> at once. Measurement collapses it to one outcome with a probability set by the amplitudes.",
+    "Entanglement": "A correlation between qubits where the joint state cannot be written as separate single-qubit states. Measuring one restricts the others.",
+    "Measurement": "The act of reading a qubit, which collapses superposition to a definite 0 or 1 and yields a sample from the probability distribution.",
+    "Bloch Sphere": "A unit sphere that pictures a single qubit's state: poles are |0> and |1>, the equator is balanced superposition.",
+    "Basis State": "One of the definite states |0> or |1> (or their multi-qubit tensor products such as |01>).",
+    "Amplitude": "The complex coefficient of a basis state in a superposition. Squaring its magnitude gives the measurement probability.",
+    "Phase": "The relative angle between amplitudes. It is invisible in single-shot counts until interference or later gates make it matter.",
+    "Interference": "When amplitudes add or cancel. Quantum algorithms shape interference so wanted outcomes grow and unwanted ones shrink.",
+    "Gate": "A reversible operation that rotates or flips a qubit's state. Gates are the instructions of a circuit.",
+    "Circuit": "An ordered list of gates applied to qubits. It is a recipe; running it produces a state or samples.",
+    "Hadamard (H)": "Puts |0> into an equal superposition |+>, moving the state from a pole to the equator.",
+    "CNOT": "A controlled-X gate: it flips the target qubit only when the control is |1>. It is the standard entangling gate.",
+    "Statevector": "The exact complex-amplitude description of a circuit's state before measurement. Ideal simulation returns it directly.",
+    "Observable": "A physical quantity you can measure, represented by an operator. Energy and magnetization are common observables.",
+    "Shot": "One repetition of a circuit run that ends in a measurement. Many shots give a sampled distribution of outcomes.",
+    "Transpilation": "Rewriting a circuit to fit a specific device's qubits, connectivity, and native gate set before execution.",
+    "Decoherence": "The loss of quantum behavior as a system interacts with its environment, turning clean states into mixed, noisy ones.",
+    "NISQ": "Noisy Intermediate-Scale Quantum: today's era of imperfect, moderately sized devices that still beat classical simulation on some tasks.",
+    "Born Rule": "The rule that the probability of measuring a basis state equals the squared magnitude of its amplitude.",
+}
+
+
+# ── Resources ──
+# A curated, mostly free shelf. URLs point to canonical, stable homes for each
+# resource; books are listed by title and publisher.
+
+RESOURCES = [
+    {
+        "title": "Qiskit Textbook (Learn)",
+        "type": "Course",
+        "detail": "The official interactive quantum computing course built on Qiskit. Pairs well with this app's Composer and Sandbox.",
+        "url": "https://learning.qiskit.org",
+        "level": "All levels",
+    },
+    {
+        "title": "Qiskit Documentation",
+        "type": "Reference",
+        "detail": "API reference, primitives, transpiler, and runtime guides for Qiskit 1.x.",
+        "url": "https://docs.quantum.ibm.com",
+        "level": "All levels",
+    },
+    {
+        "title": "IBM Quantum Platform",
+        "type": "Hardware",
+        "detail": "Run circuits on real superconducting hardware and inspect device queues and error rates.",
+        "url": "https://quantum.ibm.com",
+        "level": "Level 5",
+    },
+    {
+        "title": "Quantum Country",
+        "type": "Course",
+        "detail": "Matuschak and Nielsen's spaced-repetition quantum computing essays. Excellent for locking in foundations.",
+        "url": "https://quantum.country",
+        "level": "Level 1",
+    },
+    {
+        "title": "PennyLane",
+        "type": "Framework",
+        "detail": "Differentiable quantum programming for variational algorithms and quantum machine learning.",
+        "url": "https://pennylane.ai",
+        "level": "Level 4+",
+    },
+    {
+        "title": "QWorld",
+        "type": "Community",
+        "detail": "Global quantum education network with the QBronze and QSilver workshop series.",
+        "url": "https://qworld.net",
+        "level": "All levels",
+    },
+    {
+        "title": "Azure Quantum Documentation",
+        "type": "Reference",
+        "detail": "Microsoft's quantum development docs, including the Q# language and resource estimator.",
+        "url": "https://learn.microsoft.com/azure/quantum/",
+        "level": "Level 5",
+    },
+    {
+        "title": "arXiv quant-ph",
+        "type": "Research",
+        "detail": "The live feed of new quantum physics and computing preprints. Good for seeing where the field is moving.",
+        "url": "https://arxiv.org/list/quant-ph/recent",
+        "level": "Level 4+",
+    },
+    {
+        "title": "Qiskit YouTube Channel",
+        "type": "Video",
+        "detail": "Talks, tutorials, and algorithm walkthroughs from the Qiskit team and community.",
+        "url": "https://www.youtube.com/c/Qiskit",
+        "level": "All levels",
+    },
+    {
+        "title": "Quantum Computation and Quantum Information",
+        "type": "Book",
+        "detail": "Nielsen and Chuang. The standard university reference for the mathematical foundations.",
+        "url": "",
+        "level": "Level 4+",
+    },
+    {
+        "title": "Quantum Computing: An Applied Approach",
+        "type": "Book",
+        "detail": "Jack D. Hidary. A practical bridge from first principles to running code on real hardware.",
+        "url": "",
+        "level": "Level 3+",
+    },
+]
