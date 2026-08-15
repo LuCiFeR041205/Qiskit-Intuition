@@ -176,7 +176,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from frontend.components.data_store import GATE_LIBRARY, CURRICULUM
+from frontend.components.data_store import GATE_LIBRARY, CURRICULUM, RESOURCES, ALGORITHMS, GLOSSARY
 from frontend.components.theme import inject_theme
 
 def init_session_state():
@@ -710,9 +710,73 @@ Keep the explanation clear, educational, and under 300 words.
             response = st.write_stream(generate_stream(explain_prompt, f"Explain this code:\n\n```python\n{notebook_code}\n```"))
 
 
+def render_algorithms():
+    st.markdown("## Algorithm Library")
+    st.caption("Landmark quantum algorithms, ordered by the intuition you need before building them.")
+
+    cats = sorted({algo["category"] for algo in ALGORITHMS})
+    selected_cat = st.sidebar.radio("Filter by area", ["All"] + cats, key="algo_filter")
+    shown = ALGORITHMS if selected_cat == "All" else [a for a in ALGORITHMS if a["category"] == selected_cat]
+
+    for algo in shown:
+        with st.expander(f"{algo['name']}  ·  {algo['difficulty']}"):
+            st.markdown(
+                f"""
+<div class="physics-card" role="region" aria-label="Algorithm intuition" tabindex="0">
+    <strong>{algo['category']}</strong><br>
+    <span>{algo['intuition']}</span>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown(f"**Key gates:** {' · '.join(algo['key_gates'])}")
+            st.markdown(f"**Where to study:** {algo['links']}")
+            st.markdown("**Skeleton circuit**")
+            st.code(algo["circuit"], language="python")
+
+
+def render_resources():
+    st.markdown("## Resources")
+    st.caption("A curated shelf for going deeper, from first principles to hardware and research.")
+
+    st.markdown("### Start here")
+    st.markdown(
+        """
+Build intuition before syntax. Open the **Compose** tab to touch the state, run a **Quest** to
+practice, then read a **Lesson** in the Learn tab to connect the physics to the code. When a term
+trips you up, check the glossary below.
+        """
+    )
+
+    types = sorted({res["type"] for res in RESOURCES})
+    selected_type = st.sidebar.radio("Filter by type", ["All"] + types, key="resource_filter")
+    shown = RESOURCES if selected_type == "All" else [r for r in RESOURCES if r["type"] == selected_type]
+
+    cols = st.columns(2)
+    for idx, res in enumerate(shown):
+        with cols[idx % 2]:
+            title = f"[{res['title']}]({res['url']})" if res["url"] else res["title"]
+            st.markdown(
+                f"""
+<div class="gate-card">
+    <strong>{title}</strong><br>
+    <span>{res['detail']}</span><br>
+    <span style="color:#2b5cff;font-family:'DM Mono',monospace;font-size:.72rem;">{res['type']} · {res['level']}</span>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.divider()
+    st.markdown("### Glossary")
+    st.caption("Tap a term to expand its plain-language definition.")
+    for term, definition in GLOSSARY.items():
+        with st.expander(term):
+            st.markdown(definition)
+
+
 def render_cognitive_core_sidebar():
     has_active_key = True
-    
     status_color = "#65f4d4"
     status_text = "OFFLINE COGNITION ACTIVE"
     pulse_style = f"background-color: {status_color}; box-shadow: 0 0 10px {status_color};"
@@ -768,7 +832,9 @@ render_cognitive_core_sidebar()
 
 render_quantum_field()
 
-tab_learn, tab_compose, tab_quests, tab_chat, tab_sandbox = st.tabs(["📚 Learn", "🔬 Compose", "🎯 Quests", "💬 A.C.E. Chat", "🧪 Sandbox"])
+tab_learn, tab_compose, tab_quests, tab_chat, tab_sandbox, tab_algos, tab_resources = st.tabs([
+    "📚 Learn", "🔬 Compose", "🎯 Quests", "💬 A.C.E. Chat", "🧪 Sandbox", "🧮 Algorithms", "📖 Resources"
+])
 
 with tab_learn:
     render_curriculum()
@@ -785,3 +851,9 @@ with tab_chat:
 
 with tab_sandbox:
     render_sandbox()
+
+with tab_algos:
+    render_algorithms()
+
+with tab_resources:
+    render_resources()
