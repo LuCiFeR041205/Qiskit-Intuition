@@ -1,15 +1,37 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { HeaderHUD } from "@/components/HeaderHUD";
 import { BlochSphere3D } from "@/components/BlochSphere3D";
 import { WaveformOscilloscope } from "@/components/WaveformOscilloscope";
 import { CircuitComposer } from "@/components/CircuitComposer";
 import { SocraticCopilot } from "@/components/SocraticCopilot";
 import { QuestManager } from "@/components/QuestManager";
 import { GateOp, simulateCircuit, cAbs2 } from "@/lib/quantum_simulator";
+import {
+  Atom,
+  BookOpen,
+  Compass,
+  CircuitBoard,
+  FlaskConical,
+  Library,
+  Volume2,
+  VolumeX,
+  CloudLightning,
+} from "lucide-react";
+import { quantumAudio } from "@/lib/quantum_audio";
+
+type TabId = "intro" | "qubits" | "gates" | "algorithms" | "resources";
+
+const NAV_ITEMS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: "intro", label: "Introduction", icon: <BookOpen className="sidebar-link-icon" /> },
+  { id: "qubits", label: "Qubits & States", icon: <Compass className="sidebar-link-icon" /> },
+  { id: "gates", label: "Gates & Circuits", icon: <CircuitBoard className="sidebar-link-icon" /> },
+  { id: "algorithms", label: "Algorithms", icon: <FlaskConical className="sidebar-link-icon" /> },
+  { id: "resources", label: "Resources", icon: <Library className="sidebar-link-icon" /> },
+];
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<TabId>("intro");
   const [numQubits, setNumQubits] = useState(2);
   const [activeQubit, setActiveQubit] = useState(0);
   const [noisy, setNoisy] = useState(false);
@@ -19,6 +41,7 @@ export default function Home() {
   ]);
   const [activeStep, setActiveStep] = useState(1);
   const [latestGateDesc, setLatestGateDesc] = useState<string | null>("CNOT");
+  const [muted, setMuted] = useState(true);
 
   const effectiveStep = Math.min(activeStep, gates.length - 1);
 
@@ -36,10 +59,7 @@ export default function Home() {
   }, [numQubits, gates, noisy]);
 
   const handleAddGate = (op: Omit<GateOp, "id">) => {
-    const newOp: GateOp = {
-      ...op,
-      id: `gate-${Date.now()}-${Math.random()}`,
-    };
+    const newOp: GateOp = { ...op, id: `gate-${Date.now()}-${Math.random()}` };
     const nextGates = [...gates, newOp];
     setGates(nextGates);
     setActiveStep(nextGates.length - 1);
@@ -69,7 +89,6 @@ export default function Home() {
   const handleLoadPreset = (presetName: string) => {
     let presetGates: GateOp[] = [];
     let qCount = 2;
-
     switch (presetName) {
       case "Bell State":
         qCount = 2;
@@ -114,7 +133,6 @@ export default function Home() {
         ];
         break;
     }
-
     setNumQubits(qCount);
     setGates(presetGates);
     setActiveStep(presetGates.length - 1);
@@ -122,78 +140,154 @@ export default function Home() {
   };
 
   const entanglingCount = gates.filter((g) => g.gate === "CNOT" || g.gate === "SWAP").length;
-  const activeBasisCount = Object.values(simResult.probabilities).filter((p) => p > 0.0001).length;
 
   const circuitSummaryText = gates
     .map((g) => `${g.gate} on q${g.target}${g.control !== undefined ? ` (ctrl: q${g.control})` : ""}`)
     .join(" → ");
 
+  const handleToggleMute = () => {
+    const next = quantumAudio.toggleMute();
+    setMuted(next);
+  };
+
   return (
-    <div className="min-h-screen bg-paper text-ink flex flex-col font-sans">
-      {/* Notebook Header */}
-      <HeaderHUD
-        numQubits={numQubits}
-        onChangeNumQubits={(n) => {
-          setNumQubits(n);
-          if (activeQubit >= n) setActiveQubit(n - 1);
-        }}
-        noisy={noisy}
-        onToggleNoisy={setNoisy}
-        depth={gates.length}
-        entanglingLinks={entanglingCount}
-        activeBasisCount={activeBasisCount}
-      />
-
-      {/* Main Laboratory Notebook */}
-      <main className="max-w-7xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col gap-6">
-        {/* Upper Workspace: Bloch Sphere + Waveform Analysis */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left: 3D Bloch Sphere */}
-          <div className="lg:col-span-7 flex flex-col">
-            <BlochSphere3D
-              blochCoords={simResult.blochAngles}
-              numQubits={numQubits}
-              activeQubit={activeQubit}
-              onSelectQubit={setActiveQubit}
-            />
-          </div>
-
-          {/* Right: Waveform Analysis */}
-          <div className="lg:col-span-5 flex flex-col">
-            <WaveformOscilloscope
-              statevector={simResult.statevector}
-              numQubits={numQubits}
-            />
-          </div>
+    <div className="notebook-shell">
+      {/* ─── Left Sidebar (from concept) ─── */}
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <Atom className="sidebar-brand-icon" />
+          <span className="sidebar-brand-text">Qiskit Intuition</span>
         </div>
 
-        {/* Lower Workspace: Circuit Composer + Exercises/Copilot */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Circuit Composer */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <CircuitComposer
-              gates={gates}
-              numQubits={numQubits}
-              activeStep={effectiveStep}
-              onAddGate={handleAddGate}
-              onRemoveGate={handleRemoveGate}
-              onUndoGate={handleUndoGate}
-              onResetCircuit={handleResetCircuit}
-              onLoadPreset={handleLoadPreset}
-              onSelectStep={setActiveStep}
-              qiskitCode={fullSimResult.qiskitCode}
-            />
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`sidebar-link ${activeTab === item.id ? "active" : ""}`}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Sidebar Controls */}
+        <div className="px-3 py-2 border-t border-paper-ruled space-y-2">
+          {/* Qubit Count */}
+          <div className="flex items-center justify-between text-xs font-sans">
+            <span className="text-ink-faint">Qubits</span>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => {
+                    setNumQubits(n);
+                    if (activeQubit >= n) setActiveQubit(n - 1);
+                  }}
+                  className={`w-6 h-6 rounded text-xs font-mono font-bold transition-all ${
+                    numQubits === n
+                      ? "bg-ink-blue text-white"
+                      : "bg-paper text-ink-light border border-paper-ruled hover:bg-paper-warm"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Right: Exercises & Socratic Dialogue */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
+          {/* Noise Toggle */}
+          <button
+            onClick={() => setNoisy(!noisy)}
+            className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-sans transition-all border ${
+              noisy
+                ? "bg-ink-red/10 border-ink-red/30 text-ink-red"
+                : "bg-paper border-paper-ruled text-ink-light hover:bg-paper-warm"
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <CloudLightning className="w-3.5 h-3.5" />
+              Decoherence
+            </span>
+            <span className="font-mono font-bold text-[10px]">{noisy ? "ON" : "OFF"}</span>
+          </button>
+
+          {/* Audio Toggle */}
+          <button
+            onClick={handleToggleMute}
+            className="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-sans bg-paper border border-paper-ruled text-ink-light hover:bg-paper-warm transition-all"
+          >
+            <span className="flex items-center gap-1.5">
+              {muted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+              Sound
+            </span>
+            <span className="font-mono font-bold text-[10px]">{muted ? "OFF" : "ON"}</span>
+          </button>
+        </div>
+
+        <div className="sidebar-footer">
+          Qiskit 1.0+ · Three.js · v2.0
+        </div>
+      </aside>
+
+      {/* ─── Main Notebook Content ─── */}
+      <div className="notebook-content">
+        {/* Page Title (like the concept) */}
+        <h1 className="notebook-page-title">Qiskit Intuition</h1>
+        <p className="notebook-page-subtitle">
+          Interactive quantum mechanics laboratory — explore superposition, entanglement, and interference through real-time simulation.
+        </p>
+
+        {/* Content Grid matching concept layout */}
+        <div className="flex-1 px-4 sm:px-6 pb-6 flex flex-col gap-5">
+
+          {/* Top Row: Bloch Sphere (left) + Circuit & State Vector (middle) + Waveform (right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+            {/* Bloch Sphere — takes left ~5 cols */}
+            <div className="lg:col-span-5">
+              <BlochSphere3D
+                blochCoords={simResult.blochAngles}
+                numQubits={numQubits}
+                activeQubit={activeQubit}
+                onSelectQubit={setActiveQubit}
+              />
+            </div>
+
+            {/* Circuit + State Vector — middle ~4 cols */}
+            <div className="lg:col-span-4 flex flex-col gap-5">
+              <CircuitComposer
+                gates={gates}
+                numQubits={numQubits}
+                activeStep={effectiveStep}
+                onAddGate={handleAddGate}
+                onRemoveGate={handleRemoveGate}
+                onUndoGate={handleUndoGate}
+                onResetCircuit={handleResetCircuit}
+                onLoadPreset={handleLoadPreset}
+                onSelectStep={setActiveStep}
+                qiskitCode={fullSimResult.qiskitCode}
+              />
+            </div>
+
+            {/* Waveform Analysis — right ~3 cols */}
+            <div className="lg:col-span-3">
+              <WaveformOscilloscope
+                statevector={simResult.statevector}
+                numQubits={numQubits}
+              />
+            </div>
+          </div>
+
+          {/* Bottom Row: Exercises + Socratic Copilot */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <QuestManager
               statevector={simResult.statevector}
               onLoadQuestRequirements={(qReq) => {
                 if (numQubits < qReq) setNumQubits(qReq);
               }}
             />
-
             <SocraticCopilot
               latestGate={latestGateDesc}
               activeQubit={activeQubit}
@@ -201,21 +295,15 @@ export default function Home() {
             />
           </div>
         </div>
-      </main>
 
-      {/* Notebook Footer */}
-      <footer className="w-full bg-paper-warm border-t border-paper-ruled py-3 px-6 text-center font-sans text-xs text-ink-faint flex flex-wrap justify-between items-center gap-2">
-        <div className="font-serif italic">
-          Qiskit Intuition — Interactive Quantum Laboratory Notebook
-        </div>
-        <div className="flex items-center gap-3 font-mono text-[11px]">
-          <span className="text-ink-blue">Qiskit 1.0+</span>
-          <span className="text-pencil">·</span>
-          <span className="text-ink-amber">Three.js Engine</span>
-          <span className="text-pencil">·</span>
-          <span className="text-ink-teal">Client Matrix Solver</span>
-        </div>
-      </footer>
+        {/* Page Footer — like a textbook page number */}
+        <footer className="border-t border-paper-ruled py-2 px-6 flex justify-between items-center text-[11px] text-ink-faint font-sans">
+          <span className="font-serif italic">Qiskit Intuition — Laboratory Notebook</span>
+          <span className="font-mono">
+            {numQubits} qubits · depth {gates.length} · {entanglingCount} entangling
+          </span>
+        </footer>
+      </div>
     </div>
   );
 }

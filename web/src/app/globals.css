@@ -9,6 +9,7 @@
   --paper: #FAF8F3;
   --paper-warm: #F5F0E8;
   --paper-ruled: #E8E2D6;
+  --paper-deep: #EDE8DD;
   --ink: #2C2C2C;
   --ink-light: #6B6560;
   --ink-faint: #A39E96;
@@ -17,6 +18,8 @@
   --ink-teal: #1A7A6D;
   --ink-amber: #B8860B;
   --pencil: #8B8680;
+  --sidebar-active: #E8E2D6;
+  --sidebar-accent: #1A7A6D;
 }
 
 html {
@@ -24,15 +27,10 @@ html {
 }
 
 body {
-  background-color: var(--paper);
+  background-color: #E8E2D6;
   color: var(--ink);
   font-family: 'Source Sans 3', system-ui, sans-serif;
   overflow-x: hidden;
-  /* Subtle paper grain texture via CSS noise */
-  background-image:
-    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E"),
-    linear-gradient(var(--paper), var(--paper));
-  background-attachment: fixed;
 }
 
 /* ─── Paper Scrollbars ─── */
@@ -54,6 +52,133 @@ body {
   background: var(--ink-light);
 }
 
+/* ─── Notebook Shell ─── */
+.notebook-shell {
+  display: flex;
+  min-height: 100vh;
+  max-width: 1440px;
+  margin: 0 auto;
+  background: var(--paper);
+  box-shadow: 0 0 40px rgba(0,0,0,0.08), 0 0 2px rgba(0,0,0,0.06);
+  border-left: 1px solid var(--paper-ruled);
+  border-right: 1px solid var(--paper-ruled);
+}
+
+/* ─── Left Sidebar ─── */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--paper-warm);
+  border-right: 1px solid var(--paper-ruled);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-brand {
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid var(--paper-ruled);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sidebar-brand-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--ink-light);
+}
+
+.sidebar-brand-text {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.sidebar-nav {
+  padding: 0.75rem 0;
+  flex: 1;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 1rem;
+  font-family: 'Source Sans 3', sans-serif;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--ink-light);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+
+.sidebar-link:hover {
+  background: var(--paper-ruled);
+  color: var(--ink);
+}
+
+.sidebar-link.active {
+  background: var(--paper);
+  color: var(--ink);
+  border-left-color: var(--sidebar-accent);
+  font-weight: 600;
+}
+
+.sidebar-link-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--paper-ruled);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+/* ─── Main Content Area ─── */
+.notebook-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  /* Subtle paper grain texture */
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.02'/%3E%3C/svg%3E"),
+    linear-gradient(var(--paper), var(--paper));
+}
+
+.notebook-page-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 700;
+  font-size: 2rem;
+  color: var(--ink);
+  padding: 1.5rem 2rem 0.5rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.notebook-page-subtitle {
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.875rem;
+  color: var(--ink-faint);
+  padding: 0 2rem 1rem;
+  border-bottom: 1px solid var(--paper-ruled);
+  margin-bottom: 1.25rem;
+}
+
 /* ─── Paper Card ─── */
 .paper-card {
   background: var(--paper-warm);
@@ -65,23 +190,6 @@ body {
 
 .paper-card:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
-}
-
-/* ─── Notebook Section ─── */
-.notebook-section {
-  position: relative;
-  padding-left: 2rem;
-}
-
-.notebook-section::before {
-  content: '';
-  position: absolute;
-  left: 1.25rem;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--ink-red);
-  opacity: 0.2;
 }
 
 /* ─── Section Title (§ headers) ─── */
@@ -144,37 +252,50 @@ body {
   border-color: var(--ink-blue);
 }
 
+.ink-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ─── Typewriter Key (for gate palette) ─── */
 .key-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 2rem;
-  height: 2rem;
+  min-width: 2.25rem;
+  height: 2.25rem;
   font-family: 'JetBrains Mono', monospace;
   font-weight: 600;
   font-size: 0.75rem;
   border-radius: 3px;
   border: 1px solid var(--paper-ruled);
-  border-bottom-width: 2px;
+  border-bottom-width: 3px;
   background: var(--paper);
   color: var(--ink);
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.1s ease;
   box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+  user-select: none;
 }
 
 .key-btn:hover {
   background: var(--paper-warm);
   border-color: var(--pencil);
   transform: translateY(-1px);
-  box-shadow: 0 2px 2px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
-.key-btn:active {
+.key-btn:active, .key-btn.dragging {
   transform: translateY(1px);
   box-shadow: none;
   border-bottom-width: 1px;
+  cursor: grabbing;
+}
+
+.key-btn.selected {
+  background: var(--ink-blue);
+  color: white;
+  border-color: var(--ink-blue);
 }
 
 /* ─── Graph Paper Grid ─── */
@@ -209,6 +330,48 @@ body {
   margin: 1rem 0;
 }
 
+/* ─── Drop Zone for Drag-and-Drop ─── */
+.drop-zone {
+  transition: all 0.15s ease;
+  border: 2px dashed transparent;
+  border-radius: 3px;
+}
+
+.drop-zone.drag-over {
+  border-color: var(--ink-blue);
+  background: rgba(27, 75, 138, 0.06);
+}
+
+/* ─── Gate on Wire ─── */
+.gate-on-wire {
+  transition: all 0.15s ease;
+  cursor: grab;
+}
+
+.gate-on-wire:active {
+  cursor: grabbing;
+}
+
+.gate-on-wire.just-dropped {
+  animation: springIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ─── Notebook Margin Line (red vertical) ─── */
+.margin-line {
+  position: relative;
+}
+
+.margin-line::before {
+  content: '';
+  position: absolute;
+  left: 2.5rem;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--ink-red);
+  opacity: 0.15;
+}
+
 /* ─── Selection ─── */
 ::selection {
   background: rgba(27, 75, 138, 0.15);
@@ -219,4 +382,48 @@ body {
 *:focus-visible {
   outline: 2px solid var(--ink-blue);
   outline-offset: 2px;
+}
+
+/* ─── Spring Animations ─── */
+@keyframes springIn {
+  0% { transform: scale(0.85) translateY(6px); opacity: 0; }
+  60% { transform: scale(1.04) translateY(-2px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+@keyframes inkFlow {
+  0% { width: 0%; opacity: 0.3; }
+  100% { width: 100%; opacity: 1; }
+}
+
+@keyframes pencilWrite {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes settle {
+  0% { transform: translateY(-4px); opacity: 0; }
+  70% { transform: translateY(1px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+/* ─── Responsive: collapse sidebar on small screens ─── */
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+
+  .notebook-shell {
+    border: none;
+    box-shadow: none;
+  }
+
+  .notebook-page-title {
+    padding: 1rem 1rem 0.25rem;
+    font-size: 1.5rem;
+  }
+
+  .notebook-page-subtitle {
+    padding: 0 1rem 0.75rem;
+  }
 }

@@ -14,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-paper text-ink antialiased">
+      <body className="min-h-screen antialiased" style={{ background: "#E8E2D6" }}>
         {children}
       </body>
     </html>
