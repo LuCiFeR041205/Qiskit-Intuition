@@ -34,7 +34,19 @@ def _as_statevector_array(state):
         state = state.data
 
     try:
-        vector = np.asarray(state, dtype=complex)
+        # Pre-process inputs to parse complex strings or API dictionaries safely
+        if isinstance(state, (list, tuple)):
+            processed = []
+            for val in state:
+                if isinstance(val, dict):
+                    processed.append(complex(val.get('real', 0.0), val.get('imag', 0.0)))
+                elif isinstance(val, str):
+                    processed.append(complex(val.replace('i', 'j').strip('()')))
+                else:
+                    processed.append(complex(val))
+            vector = np.asarray(processed, dtype=complex)
+        else:
+            vector = np.asarray(state, dtype=complex)
     except (TypeError, ValueError):
         return None
 
@@ -56,14 +68,14 @@ def calculate_fidelity(state1, state2):
     s2 = _as_statevector_array(state2)
     if s1 is None or s2 is None:
         return 0.0
-    
+
     # Pad if necessary (though they should be the same size if num_qubits match)
     if len(s1) != len(s2):
         return 0.0
-        
+
     overlap = np.vdot(s1, s2)
     fidelity = np.abs(overlap)**2
-    return fidelity
+    return float(fidelity)
 
 def get_quests():
     return QUESTS
@@ -103,10 +115,11 @@ def render_quest_tab(engine):
     # We check the current state vector from the engine passed in
     angles = engine.run_simulation(noisy=False)
     
-    current_state = engine._last_simulation
+    current_simulation = engine._last_simulation
     target_state = current_quest["target_state"]
     
-    if current_state is not None:
+    if current_simulation is not None:
+        current_state = current_simulation.get("statevector")
         fidelity = calculate_fidelity(current_state, target_state)
         
         st.progress(min(fidelity, 1.0))

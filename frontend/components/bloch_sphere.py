@@ -1,3 +1,4 @@
+import html
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -19,6 +20,8 @@ def render_bloch_sphere(theta, phi, qubit_name="q"):
         phi = float(phi)
     except (TypeError, ValueError):
         phi = 0.0
+
+    safe_qubit_name = html.escape(str(qubit_name))
 
     html_template = """<!DOCTYPE html>
 <html lang="en">
@@ -409,7 +412,7 @@ def render_bloch_sphere(theta, phi, qubit_name="q"):
     html_code = (html_template
                  .replace("{theta}", f"{theta:.6f}")
                  .replace("{phi}", f"{phi:.6f}")
-                 .replace("{qubit_name}", str(qubit_name)))
+                 .replace("{qubit_name}", safe_qubit_name))
     
     # Render full canvas component
     components.html(html_code, height=480, scrolling=False)

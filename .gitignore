@@ -11,6 +11,8 @@ share/
 .env
 .env.*
 secrets.toml
+*.log
+*.db
 
 # Python Caches & Compiled files
 __pycache__/
@@ -22,6 +24,14 @@ __pycache__/
 # OS Specific
 .DS_Store
 Thumbs.db
+
+# Node / Web Frontend Dependencies & Builds
+node_modules/
+**/node_modules/
+dist/
+.vite/
+.next/
+out/
 
 # Streamlit specific
 .streamlit/

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import base64
 import io
@@ -12,13 +12,13 @@ router = APIRouter()
 
 class GateModel(BaseModel):
     gate: str
-    target: int
-    control: Optional[int] = None
+    target: int = Field(ge=0, le=9)
+    control: Optional[int] = Field(default=None, ge=0, le=9)
     angle: Optional[float] = None
 
 class SimulateRequest(BaseModel):
-    gates: List[GateModel]
-    num_qubits: int
+    gates: List[GateModel] = Field(..., max_length=100)
+    num_qubits: int = Field(default=2, ge=1, le=10)
     noisy: bool = False
 
 def fig_to_base64(fig):

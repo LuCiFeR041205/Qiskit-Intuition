@@ -1,6 +1,7 @@
 import os
+import tempfile
 
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/qiskit-intuition-matplotlib")
+os.environ.setdefault("MPLCONFIGDIR", os.path.join(tempfile.gettempdir(), "qiskit-intuition-mpl"))
 
 import numpy as np
 import matplotlib.pyplot as plt
