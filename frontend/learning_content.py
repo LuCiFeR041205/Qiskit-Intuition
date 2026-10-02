@@ -197,3 +197,33 @@ PRACTICE = [
         "required": ["H", "CNOT"],
     },
 ]
+
+{
+        "id": "qml",
+        "number": 7,
+        "title": "Quantum machine learning: circuits that learn",
+        "eyebrow": "Lesson 7",
+        "duration": "12 min",
+        "summary": "In Lesson 5 we saw that circuits can encode algorithms. In Lesson 6 we saw that real hardware is noisy. Quantum machine learning asks: what if the circuit had knobs we could turn? A parameterized circuit is a circuit with adjustable angles. Training means finding the angles that make the output match what we want.",
+        "objectives": [
+            "Explain what makes a circuit 'parameterized'",
+            "Build a small variational circuit with adjustable Ry gates",
+            "Understand the training loop: predict, measure, adjust"
+        ],
+        "explanation": "In Lesson 3 we used gates like H and Z to change a qubit's phase. In Lesson 4 we used CNOT to entangle two qubits. A variational circuit combines those ideas into something new: some gates become rotation gates whose angles are variables, not fixed numbers. In Qiskit, that's qc.ry(theta, 0) where theta is a value you can change. Change theta, and the circuit's output changes. Training is the process of finding the theta values that make the output match a target. It works the same way classical machine learning does: guess a set of parameters, measure how wrong the result is, adjust, repeat. The difference is that the model itself is a quantum circuit, so it might represent patterns that are hard to express classically. The honest caveat, which Lesson 6 prepared you for: at small scales, on noisy data, quantum models often tie with or lose to classical ones. The point of this lesson is to understand the mechanism, not to claim a win.",
+        "equation": "|ψ(θ)⟩ = U(θ)|0⟩",
+        "latex": "|\\psi(\\theta)\\rangle = U(\\theta)|0\\rangle",
+        "misconception": "Quantum ML is not automatically better than classical ML. It's a different tool. Whether it helps depends on the problem, the data, and the scale — and at small scales, the classical baseline often wins. That's not a failure; it's a result worth reporting.",
+        "preset": "variational",
+        "checkpoint": {
+            "question": "In a variational circuit, what are we actually training?",
+            "options": [
+                "The quantum hardware itself",
+                "The angles inside rotation gates",
+                "The measurement outcomes",
+                "The number of qubits"
+            ],
+            "answer": 1,
+            "explanation": "The circuit's structure stays fixed. What changes during training is the values of the parameters — the angles inside gates like Ry(θ). Those values are adjusted to minimize a loss function."
+        }
+    },
