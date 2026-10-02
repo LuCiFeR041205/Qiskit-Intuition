@@ -133,9 +133,7 @@ LESSONS = [
         "preset": "Bell state",
         "checkpoint": "Why should you compare noisy results with an ideal simulation of the same circuit?",
     },
-]
-
-{
+    {
         "id": "qml",
         "number": 7,
         "title": "Quantum machine learning",
@@ -158,6 +156,8 @@ LESSONS = [
         "preset": "Variational circuit",
         "checkpoint": "In a variational circuit, what actually changes during training?",
     },
+]
+
 
 PRESETS = {
     "Start at |0>": {"qubits": 1, "gates": []},
@@ -187,6 +187,7 @@ PRESETS = {
             {"gate": "CNOT", "target": 1, "control": 0},
             {"gate": "CNOT", "target": 2, "control": 1},
         ],
+    },
    "Variational circuit": {
         "qubits": 2,
         "gates": [
@@ -196,7 +197,7 @@ PRESETS = {
             {"gate": "RY", "target": 0, "control": None, "angle": 0.7854},
         ],
     },
-
+}
 
 PRACTICE = [
     {
@@ -226,7 +227,7 @@ PRACTICE = [
         "target": {"00": 0.5, "01": 0.0, "10": 0.0, "11": 0.5},
         "required": ["H", "CNOT"],
     },
-{
+    {
         "title": "Inspect a variational circuit",
         "level": "Machine learning",
         "qubits": 2,
