@@ -135,6 +135,29 @@ LESSONS = [
     },
 ]
 
+{
+        "id": "qml",
+        "number": 7,
+        "title": "Quantum machine learning",
+        "eyebrow": "Machine learning",
+        "duration": "15 min",
+        "summary": "Lessons 5 and 6 showed how circuits solve problems and why real hardware is noisy. Quantum machine learning asks a different question: what if the circuit itself had adjustable knobs? A parameterized circuit lets you tune those knobs to fit data.",
+        "objectives": [
+            "Explain what makes a circuit parameterized.",
+            "Build a small variational circuit with rotation gates.",
+            "Understand the training loop: predict, measure, adjust.",
+        ],
+        "explanation": [
+            "In Lesson 3 you used Z to change a qubit's phase. In Lesson 4 you used CNOT to entangle two qubits. A variational circuit combines both ideas into a layered structure: rotation gates on each qubit, then an entangler, then more rotations. In real quantum machine learning, the angles of those rotations are variables that training adjusts.",
+            "Training follows the same loop as classical machine learning: guess the parameters, run the circuit, measure how far the output is from what you want, adjust, repeat. The difference is that the model itself is a quantum circuit, so it might represent patterns that are hard to express classically.",
+            "Lesson 6 prepared you for the honest caveat: at small scales, on noisy data, quantum models often tie with or lose to classical ones. The point of this lesson is to understand the mechanism, not to claim a win.",
+        ],
+        "equation": "RY(theta)|0> = cos(theta/2)|0> + sin(theta/2)|1>",
+        "latex": r"R_Y(\theta)|0\rangle = \cos\!\left(\tfrac{\theta}{2}\right)|0\rangle + \sin\!\left(\tfrac{\theta}{2}\right)|1\rangle",
+        "misconception": "Quantum ML is not automatically better than classical ML. It is a different tool, and whether it helps depends on the problem, the data, and the scale.",
+        "preset": "Variational circuit",
+        "checkpoint": "In a variational circuit, what actually changes during training?",
+    },
 
 PRESETS = {
     "Start at |0>": {"qubits": 1, "gates": []},
@@ -164,8 +187,15 @@ PRESETS = {
             {"gate": "CNOT", "target": 1, "control": 0},
             {"gate": "CNOT", "target": 2, "control": 1},
         ],
+   "Variational circuit": {
+        "qubits": 2,
+        "gates": [
+            {"gate": "RY", "target": 0, "control": None, "angle": 1.5708},
+            {"gate": "RY", "target": 1, "control": None, "angle": 1.5708},
+            {"gate": "CNOT", "target": 1, "control": 0},
+            {"gate": "RY", "target": 0, "control": None, "angle": 0.7854},
+        ],
     },
-}
 
 
 PRACTICE = [
@@ -196,34 +226,15 @@ PRACTICE = [
         "target": {"00": 0.5, "01": 0.0, "10": 0.0, "11": 0.5},
         "required": ["H", "CNOT"],
     },
+{
+        "title": "Inspect a variational circuit",
+        "level": "Machine learning",
+        "qubits": 2,
+        "goal": "Load the Variational circuit preset and describe what each gate does.",
+        "hint": "RY rotates a qubit. CNOT entangles the two qubits. In real QML, the RY angles would be trained.",
+        "target": {"00": 0.073, "01": 0.073, "10": 0.427, "11": 0.427},
+    },
 ]
 
-{
-        "id": "qml",
-        "number": 7,
-        "title": "Quantum machine learning: circuits that learn",
-        "eyebrow": "Lesson 7",
-        "duration": "12 min",
-        "summary": "In Lesson 5 we saw that circuits can encode algorithms. In Lesson 6 we saw that real hardware is noisy. Quantum machine learning asks: what if the circuit had knobs we could turn? A parameterized circuit is a circuit with adjustable angles. Training means finding the angles that make the output match what we want.",
-        "objectives": [
-            "Explain what makes a circuit 'parameterized'",
-            "Build a small variational circuit with adjustable Ry gates",
-            "Understand the training loop: predict, measure, adjust"
-        ],
-        "explanation": "In Lesson 3 we used gates like H and Z to change a qubit's phase. In Lesson 4 we used CNOT to entangle two qubits. A variational circuit combines those ideas into something new: some gates become rotation gates whose angles are variables, not fixed numbers. In Qiskit, that's qc.ry(theta, 0) where theta is a value you can change. Change theta, and the circuit's output changes. Training is the process of finding the theta values that make the output match a target. It works the same way classical machine learning does: guess a set of parameters, measure how wrong the result is, adjust, repeat. The difference is that the model itself is a quantum circuit, so it might represent patterns that are hard to express classically. The honest caveat, which Lesson 6 prepared you for: at small scales, on noisy data, quantum models often tie with or lose to classical ones. The point of this lesson is to understand the mechanism, not to claim a win.",
-        "equation": "|ψ(θ)⟩ = U(θ)|0⟩",
-        "latex": "|\\psi(\\theta)\\rangle = U(\\theta)|0\\rangle",
-        "misconception": "Quantum ML is not automatically better than classical ML. It's a different tool. Whether it helps depends on the problem, the data, and the scale — and at small scales, the classical baseline often wins. That's not a failure; it's a result worth reporting.",
-        "preset": "variational",
-        "checkpoint": {
-            "question": "In a variational circuit, what are we actually training?",
-            "options": [
-                "The quantum hardware itself",
-                "The angles inside rotation gates",
-                "The measurement outcomes",
-                "The number of qubits"
-            ],
-            "answer": 1,
-            "explanation": "The circuit's structure stays fixed. What changes during training is the values of the parameters — the angles inside gates like Ry(θ). Those values are adjusted to minimize a loss function."
-        }
-    },
+
+
