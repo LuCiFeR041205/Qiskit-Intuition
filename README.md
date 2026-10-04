@@ -10,16 +10,22 @@ pinned: false
 
 # Qiskit Intuition
 
-Qiskit Intuition teaches quantum computing and Qiskit from zero, **intuition first**. Every lesson follows the same loop:
+**Learn quantum computing and Qiskit from zero, intuition first, in a paper lab notebook.**
 
-1. **Intuition** — a plain-language picture plus an interactive widget: a 3D Bloch sphere you can grab and turn, a shot sampler, interference phasors, measurement bases, an entanglement sampler, a teleportation walkthrough, a phase-kickback black box, a Grover amplifier, live transpiler routing, and noise and training simulators.
-2. **Predict** — a multiple-choice prediction with feedback on every option.
-3. **Experiment** — the worked circuit in a guided builder with per-qubit Bloch spheres.
-4. **Formalize** — the math, once the picture exists.
-5. **Code it** — the Qiskit API for the idea, then an auto-checked coding exercise.
-6. **Reflect** — explain the result in your own words, with optional coach feedback.
+**▶ Try it:** [huggingface.co/spaces/j76dvyt4q5-cyber/Qiskit-Intuition](https://huggingface.co/spaces/j76dvyt4q5-cyber/Qiskit-Intuition). It works on laptops, tablets and phones, with no sign-up or API key.
 
-The project includes a Streamlit app for Hugging Face Spaces and a separate Next.js client. Both work without a hosted model or external simulator.
+Most quantum courses open with linear algebra. This one opens with a picture you can grab and turn. Each idea becomes a prediction you test, then an experiment, and only then the math and the Qiskit code.
+
+## How every lesson works
+
+| Step | What you do |
+| --- | --- |
+| 1. **Intuition** | Play with an interactive picture: a 3D Bloch sphere you can drag, a shot sampler, interference phasors, an entanglement sampler, a Grover amplifier, live transpiler routing and more. |
+| 2. **Predict** | Commit to an answer. Every option, right or wrong, explains why it is tempting. |
+| 3. **Experiment** | Build the circuit in a guided builder and watch each qubit's Bloch sphere. |
+| 4. **Formalize** | Learn the math, now that the picture exists. |
+| 5. **Code it** | Read the Qiskit API line by line, then solve an exercise that is checked automatically. |
+| 6. **Reflect** | Explain the result in your own words and get instant feedback on what you covered and what you missed. |
 
 ## Curriculum
 
@@ -30,104 +36,98 @@ The project includes a Streamlit app for Hugging Face Spaces and a separate Next
 | Algorithms | Phase kickback: Deutsch's algorithm · Grover search |
 | Real hardware & beyond | Noise and transpilation · Running on a real chip · Trainable circuits and quantum ML |
 
-## Public learning experience
+## Features
 
-- **Course map:** units, progress, a resume button, and a glossary that gives each term's picture and precise definition.
-- **Your notebook, kept:** progress, predictions, margin notes, explanations and exercise code save automatically in the browser (localStorage — nothing is sent to a server) and restore on the next visit. The **My notebook** page collects everything you've written and downloads it as JSON (to restore later) or as a Markdown write-up.
-- **Playground:** an open workspace that switches between the visual circuit builder and the sandboxed Qiskit code runner without affecting course progress.
-- **Instant feedback on explanations:** in the Reflect step, "Check my reasoning" compares your explanation with the lesson's key ideas and common misconceptions, offline and instantly. With `GEMINI_API_KEY` set, a model adds notes below.
-- **Easy-read text:** a sidebar switch swaps the handwriting for Atkinson Hyperlegible, a font designed for low-vision readers, and straightens tilted notes. Colours meet WCAG AA contrast.
-- **Phones and tablets:** the sidebar tucks away on small screens, page tabs take its place, and the 3D sphere works with touch.
-- **Code coach:** context-aware help receives the current lesson, circuit, code, and latest traceback.
-- **Transfer challenges:** optional circuit targets open in the playground for extra practice.
-- **Content Studio:** edit every part of a lesson — intuition, widget, quiz, worked circuit, math, Qiskit example, exercise and reflection rubric — in plain text. Saving validates everything, runs the example and checks the exercise's solution. Author controls stay outside the learner navigation and export/import one publishable content file.
-
-## Hugging Face Spaces
-
-The repository root is a ready-to-run Streamlit Space. Simulation, safe code execution, and the built-in teaching engine all run in the same process, so Spaces does not need a second API service.
-
-To deploy:
-
-1. Create a Streamlit Space.
-2. Push this repository to the Space.
-3. The Space reads the YAML metadata above and starts `app.py`.
-
-For optional model-enhanced tutoring, add `GEMINI_API_KEY` as a private Space secret. Without it, the deterministic code-aware coach remains available. `GEMINI_MODEL` can override the default model name.
-
-## Editing course content
-
-Open **Content studio** in the Streamlit navigation. Changes preview immediately for the current session.
-
-To publish changes permanently:
-
-1. Download `site_content.json` from Content Studio.
-2. Replace `frontend/site_content.json` in the repository.
-3. Commit and push the file to the Space or main repository.
-
-This design keeps public visitors from modifying deployed course content.
+- **A notebook that remembers.** Progress, predictions, margin notes, explanations and exercise code save automatically in your browser and come back on your next visit. Nothing is sent to a server. **My notebook** collects everything you wrote; download it as JSON to restore later, or as a Markdown write-up.
+- **Auto-checked Qiskit exercises.** Your code runs in a sandbox: an import allowlist plus an isolated process with time and memory limits. Its circuit is compared with a reference solution by state fidelity or by measurement distribution.
+- **Instant feedback on explanations.** "Check my reasoning" compares what you wrote with each lesson's key ideas and common misconceptions. It works offline. With `GEMINI_API_KEY` set, an AI model adds notes.
+- **Playground.** A free circuit builder and Qiskit code runner with a code coach, plus practice challenges. Nothing there affects course progress.
+- **Glossary.** Every term with its picture and its precise definition.
+- **Built for every screen.** On phones the sidebar tucks away and page tabs take its place, and the 3D sphere works with touch.
+- **Easy to read.** A sidebar switch swaps the handwriting for Atkinson Hyperlegible, a font designed for low-vision readers, and straightens tilted notes. Colours meet WCAG AA contrast.
+- **Feedback button on every page.** Testers can report what confused them, what broke or what they liked. Each report becomes a GitHub issue tagged with the page, lesson and step.
+- **Content Studio.** Course authors can edit every part of a lesson in plain text: intuition, widget, quiz, worked circuit, math, Qiskit example, exercise and reflection rubric. To open it, go to the sidebar → **Course author**. Saving checks the lesson, runs the example and confirms the exercise's solution passes.
 
 ## Run locally
 
-Use Python 3.10 or newer:
+Python 3.10 or newer:
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The optional FastAPI service exposes simulation, execution, and tutor endpoints:
+Then open http://localhost:8501.
 
-```bash
-uvicorn backend.main:app --reload --port 8000
-```
+## Configuration
 
-## Standalone web client
+Everything is optional. On Hugging Face, add these as **Space secrets**. Locally, put them in a `.env` file.
 
-The `web` directory contains a lightweight Next.js version of the same course and circuit flow.
+| Variable | Purpose |
+| --- | --- |
+| `GEMINI_API_KEY` | Adds AI notes to the Reflect feedback and the code coach. Without it, the built-in feedback and coach still work. |
+| `GEMINI_MODEL` | Overrides the default Gemini model name. |
+| `FEEDBACK_GITHUB_TOKEN` | A fine-grained GitHub token with **Issues: write** on this repository. It lets the feedback button file issues directly. Without it, testers get a pre-filled issue link to submit themselves. |
+| `FEEDBACK_GITHUB_REPO` | Where feedback goes (`owner/name`). Defaults to this repository. |
+| `ALLOWED_ORIGINS` | Extra CORS origins for the optional FastAPI service, comma-separated. |
 
-```bash
-cd web
-npm install
-npm run dev
-```
+## Deployment
 
-The web simulator runs entirely in the browser. To connect its Code Coach to the Python tutor API, set:
+Every push to `main` runs CI. It also uploads the app to the Hugging Face Space through `.github/workflows/sync-to-huggingface.yml`, which needs an `HF_TOKEN` repository secret with write access to the Space. The Space reads the YAML header at the top of this file and starts `app.py`.
 
-```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+## Editing course content
 
-Hugging Face Space origins are accepted by the API. Additional deployments can be added with the comma-separated `ALLOWED_ORIGINS` environment variable.
+Changes made in the Content Studio apply to your session straight away. To publish them for everyone:
+
+1. Download `site_content.json` from the Content Studio.
+2. Replace `frontend/site_content.json` with it.
+3. Commit and push. The Space redeploys automatically.
+
+Visitors can't change the live course. See [CONTRIBUTING.md](CONTRIBUTING.md) for the lesson format and how to write lessons directly in Python.
 
 ## Tests
 
 ```bash
 ruff check .
 pytest tests -q
-node web/tests/simulator.test.mjs
-cd web && npm run build
 ```
 
-The suite covers quantum probabilities and statevectors, quest fidelity, sandbox safety and escape attempts, code-review diagnostics, tutor context, the browser-side simulator, and the curriculum itself: every worked example must run and every exercise's reference solution must pass its checker. CI runs all of these on pushes and pull requests.
+The tests check the quantum engine, the sandbox (including escape attempts), the exercise checker, the explanation reviewer, Content Studio parsing, notebook save and restore, and feedback filing. They also cover the curriculum: every worked example must run, and every exercise's reference solution must pass while its starter code fails. A smoke test clicks through every stage of every lesson. CI runs everything on each push and pull request.
+
+## Known limits
+
+- Progress is stored per browser. Clearing site data or switching devices starts a fresh notebook, unless you download your notebook first and restore it.
+- On the free Hugging Face tier, the Space sleeps when idle, so the first visit afterwards can take about 30 seconds.
+- Circuits run on a simulator. The hardware lessons simulate a real chip's layout and noise instead of sending jobs to IBM Quantum.
 
 ## Project structure
 
 ```text
-app.py                              Streamlit / Hugging Face entry point
-frontend/streamlit_app.py           Public learning interface
-frontend/learning_content.py        Curriculum, presets, practice, glossary
-frontend/intuition.py               Interactive intuition widgets and SVG visuals
-frontend/bloch3d.py                 Draggable ink-style 3D Bloch sphere (runs in the browser)
-frontend/notebook_store.py          Save/restore the learner's notebook (browser storage + file)
-frontend/notebook_storage/          Tiny HTML component that talks to localStorage
-static/fonts/                       Self-hosted notebook fonts (SIL Open Font License)
-frontend/site_content.json          Editable published content configuration
-backend/core/quantum_engine.py      Qiskit simulation and export
-backend/core/notebook_engine.py     Restricted teaching sandbox (allowlist + isolated process)
-backend/core/exercise_checker.py    Auto-checks learner Qiskit code against a reference
-backend/core/qiskit_thread.py       Runs in-app Qiskit work on one thread (avoids a Rust-extension crash)
-backend/core/teaching_assistant.py  Code review, tutoring, and optional model path
-backend/routers/agents.py           Tutor and compatibility endpoints
-web/                                Standalone Next.js learning client
-tests/                              Python integration and unit tests
+app.py                               Streamlit / Hugging Face entry point
+frontend/streamlit_app.py            The learning app: pages, lesson steps, Content Studio
+frontend/learning_content.py         Curriculum, rubrics, presets, practice, glossary
+frontend/intuition.py                Interactive intuition widgets and SVG visuals
+frontend/bloch3d.py                  Draggable 3D Bloch sphere (runs in the browser)
+frontend/lesson_editing.py           Plain-text lesson formats for the Content Studio
+frontend/notebook_store.py           Save/restore the learner's notebook
+frontend/notebook_storage/           Tiny HTML component that talks to localStorage
+frontend/education_theme.py          The paper-notebook look
+frontend/site_content.json           Published content overrides
+static/fonts/                        Self-hosted fonts (SIL Open Font License)
+backend/core/quantum_engine.py       Qiskit simulation, noise and export
+backend/core/notebook_engine.py      Code sandbox (allowlist + isolated process)
+backend/core/exercise_checker.py     Auto-checks learner code against a reference
+backend/core/explanation_review.py   Instant feedback on written explanations
+backend/core/feedback.py             Files tester feedback as GitHub issues
+backend/core/qiskit_thread.py        Runs in-app Qiskit work on one thread
+backend/core/teaching_assistant.py   Code review and tutoring
+backend/main.py, backend/routers/    Optional FastAPI service (simulation, execution, tutor)
+web/                                 Older standalone Next.js client (not deployed)
+tests/                               Python tests
 ```
+
+The optional API runs with `uvicorn backend.main:app --reload --port 8000`. The older Next.js client in `web/` runs with `npm install && npm run dev` from that folder.
+
+## Licence
+
+MIT. See [LICENSE](LICENSE). The fonts in `static/fonts/` are under the SIL Open Font License.
