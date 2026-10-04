@@ -97,6 +97,7 @@ def init_state() -> None:
         "code_attempts": {},
         "task_feedback": {},
         "code_runs": {},
+        "reading_mode": "notebook",
         "explanation_feedback": {},
         "author_mode": False,
         "playground_view": "Circuit builder",
@@ -139,6 +140,10 @@ def navigate(page: str, playground_view: str | None = None) -> None:
     if playground_view:
         st.session_state.pending_playground_view = playground_view
     st.rerun()
+
+
+def set_reading_mode() -> None:
+    st.session_state.reading_mode = "plain" if st.session_state.reading_toggle else "notebook"
 
 
 def remember(store: str, item: str, widget_key: str) -> None:
@@ -233,6 +238,14 @@ Simulation, lessons, and code review work without a separate server or API key.
 </p>
         """,
         unsafe_allow_html=True,
+    )
+
+    st.sidebar.toggle(
+        "Easy-read text",
+        value=st.session_state.reading_mode == "plain",
+        key="reading_toggle",
+        on_change=set_reading_mode,
+        help="Swap the handwriting for Atkinson Hyperlegible, a font designed for easy reading, and straighten tilted notes.",
     )
 
     with st.sidebar.expander("Course author"):
@@ -1396,8 +1409,8 @@ def footer() -> None:
     st.caption("Intuition → prediction → experiment → math → Qiskit → explanation. Runs locally or on Hugging Face Spaces.")
 
 
-inject_education_theme()
 init_state()
+inject_education_theme(readable=st.session_state.reading_mode == "plain")
 if st.session_state.pop("nb_restored", False):
     st.toast("Welcome back — your notebook was restored.", icon="📓")
 if "nb_toast" in st.session_state:

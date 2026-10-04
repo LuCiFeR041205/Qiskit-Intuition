@@ -20,6 +20,11 @@ _TEMPLATE = r"""
 <style>
 @font-face { font-family: "Patrick Hand"; src: url("app/static/fonts/PatrickHand-latin.woff2") format("woff2"); }
 @font-face { font-family: "Caveat"; font-weight: 400 700; src: url("app/static/fonts/Caveat-latin.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("app/static/fonts/AtkinsonHyperlegible-Regular-latin.woff2") format("woff2"); }
+body.readable, body.readable .title, body.readable .panel h4, body.readable .pct, body.readable .angles,
+body.readable .snaps button { font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
+body.readable .title, body.readable .panel h4 { font-size: 18px; }
+body.readable .pct, body.readable .angles { font-size: 16px; }
 html, body { margin: 0; background: transparent; color: #2b2a27; font-family: "Patrick Hand", "Comic Neue", cursive; }
 .wrap { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start; }
 .sphere { display: flex; flex-direction: column; align-items: center; }
@@ -49,7 +54,8 @@ input[type=range] { accent-color: #1d3a8a; width: 100%; }
 <div class="wrap" id="root"></div>
 <script>
 const CFG = __CONFIG__;
-const INK = "#1d3a8a", RED = "#c0392b", PENCIL = "#6f6a5e", LIGHT = "#a9a08a", GRAPHITE = "#2b2a27";
+if (CFG.readable) document.body.classList.add("readable");
+const INK = "#1d3a8a", RED = "#ab2e22", PENCIL = "#6f6a5e", LIGHT = "#a9a08a", GRAPHITE = "#2b2a27";
 let az = 0.52, el = 0.32;
 const SIZE = CFG.size || 250, R = SIZE * 0.34;
 const root = document.getElementById("root");
@@ -259,6 +265,7 @@ render();
 
 
 def _render(config: dict, height: int) -> None:
+    config = {**config, "readable": st.session_state.get("reading_mode") == "plain"}
     # Escape "<" so no string in the config can close the <script> tag.
     payload = json.dumps(config).replace("<", "\\u003c")
     html = _TEMPLATE.replace("__CONFIG__", payload)

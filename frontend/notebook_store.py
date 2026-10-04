@@ -28,7 +28,8 @@ MAX_ENTRIES = 200
 LIST_FIELDS = ("completed_lessons", "tasks_passed")
 TEXT_FIELDS = ("notes", "reflections", "code_attempts")
 # Text widgets whose contents are mirrored into the notebook dicts above.
-WIDGET_PREFIXES = ("task_", "reflection_", "margin_")
+WIDGET_PREFIXES = ("task_", "reflection_", "margin_", "reading_toggle")
+READING_MODES = ("notebook", "plain")
 
 _storage = components.declare_component(
     "notebook_storage", path=str(Path(__file__).with_name("notebook_storage"))
@@ -47,6 +48,7 @@ def empty() -> dict[str, Any]:
         "code_attempts": {},
         "selected_lesson": 0,
         "learning_stage": 0,
+        "reading_mode": "notebook",
     }
 
 
@@ -102,6 +104,8 @@ def sanitize(data: Any) -> dict[str, Any]:
         clean[field] = _text_map(data.get(field))
     clean["selected_lesson"] = _bounded_int(data.get("selected_lesson"), 0, 500)
     clean["learning_stage"] = _bounded_int(data.get("learning_stage"), 0, 10)
+    mode = data.get("reading_mode")
+    clean["reading_mode"] = mode if mode in READING_MODES else READING_MODES[0]
     return clean
 
 
@@ -126,6 +130,9 @@ def merge(current: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]:
     source = saved if fresh else current
     merged["selected_lesson"] = source["selected_lesson"]
     merged["learning_stage"] = source["learning_stage"]
+    # A preference changed in this session wins; otherwise keep the saved one.
+    changed = current["reading_mode"] != READING_MODES[0]
+    merged["reading_mode"] = current["reading_mode"] if changed else saved["reading_mode"]
     return merged
 
 
