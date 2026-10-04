@@ -44,7 +44,7 @@ st.set_page_config(
     page_title="Qiskit Intuition — Learn quantum computing",
     page_icon="Q",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",  # open on desktop, tucked away on phones
 )
 
 
@@ -261,6 +261,23 @@ def inline_md(text: str) -> str:
     escaped = html.escape(text)
     escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
     return re.sub(r"`(.+?)`", r"<code>\1</code>", escaped)
+
+
+def mobile_page_switcher(active_page: str) -> None:
+    """Page tabs at the top of the page, shown only on small screens (CSS),
+    where the sidebar is tucked behind its menu button."""
+    if active_page not in PAGES:
+        return
+    with st.container(key="nb-mobile-nav"):
+        choice = st.segmented_control(
+            "Go to",
+            PAGES,
+            default=active_page,
+            key=f"mobile_nav_{active_page}",
+            label_visibility="collapsed",
+        )
+    if choice and choice != active_page:
+        navigate(choice)
 
 
 def page_header(eyebrow: str, title: str, intro: str) -> None:
@@ -1416,6 +1433,7 @@ if st.session_state.pop("nb_restored", False):
 if "nb_toast" in st.session_state:
     st.toast(st.session_state.pop("nb_toast"), icon="📓")
 active_page = sidebar()
+mobile_page_switcher(active_page)
 
 if active_page == "Course map":
     render_course_map()

@@ -128,6 +128,16 @@ NOTEBOOK_CSS = """
    box-drawing glyphs (┤ ├ ─) that Courier Prime lacks, or columns misalign. */
 code, pre, [data-testid="stCode"] * { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace !important; }
 textarea { font-family: var(--type) !important; }
+/* Code editors scroll sideways instead of soft-wrapping (which garbles code on phones). */
+.stApp textarea { white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+[class*="st-key-nb-margin-notes"] textarea, [data-testid="stForm"] textarea { white-space: pre-wrap; }
+
+/* The "open sidebar" control as a ribbon bookmark in the cover colour. */
+[data-testid="stExpandSidebarButton"] {
+  background: var(--cover) !important; color: #f1ead6 !important;
+  border-radius: 0 10px 10px 0 !important; box-shadow: 2px 3px 8px rgba(0,0,0,.25);
+}
+[data-testid="stExpandSidebarButton"] * { color: #f1ead6 !important; }
 [data-testid="stCode"] pre, [data-testid="stCode"] code { line-height: 1.2 !important; }
 .stApp [data-testid="stMarkdownContainer"] :not(pre) > code {
   background: rgba(255, 232, 103, .45);
@@ -569,7 +579,10 @@ table.glossary td:first-child strong { background: linear-gradient(transparent 5
 }
 
 /* ---------- small screens ---------- */
+[class*="st-key-nb-mobile-nav"] { display: none; }
 @media (max-width: 760px) {
+  [class*="st-key-nb-mobile-nav"] { display: block; margin-bottom: .6rem; }
+  [class*="st-key-nb-mobile-nav"] button p { font-size: .95rem !important; }
   [data-testid="stMainBlockContainer"] {
     margin: .4rem .3rem 2rem;
     padding: 1.6rem 1rem 3rem 2.6rem !important;
