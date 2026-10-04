@@ -52,3 +52,12 @@ def test_easy_read_mode_renders_lessons():
         at.session_state["learning_stage"] = stage
         _run(at)
     assert any("Atkinson Hyperlegible" in block.value for block in at.markdown)
+
+
+def test_content_studio_renders_every_lesson_in_the_editor():
+    at = _run(AppTest.from_file(APP, default_timeout=90))
+    at.session_state["author_mode"] = True
+    _run(at)
+    for index in range(len(LESSONS)):
+        at.selectbox(key="studio_lesson_index").set_value(index)
+        _run(at)

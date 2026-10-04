@@ -36,8 +36,8 @@ from backend.core.teaching_assistant import (
     review_qiskit_code,
 )
 from frontend.education_theme import inject_education_theme
-from frontend.intuition import render_circuit, render_probabilities, render_widget, show_html
-from frontend import notebook_store
+from frontend.intuition import WIDGETS, render_circuit, render_probabilities, render_widget, show_html
+from frontend import lesson_editing, notebook_store
 from frontend.bloch3d import bloch_view_3d
 from frontend.learning_content import GLOSSARY, LESSONS, PRACTICE, PRESETS, UNITS
 
@@ -1265,44 +1265,110 @@ def render_content_studio() -> None:
     lesson_index = st.selectbox(
         "Lesson to edit",
         range(len(lessons)),
-        format_func=lambda index: f"{lessons[index]['number']}. {lessons[index]['title']}",
+        format_func=lambda index: f"{index + 1}. {lessons[index]['title']}",
         key="studio_lesson_index",
     )
     lesson = lessons[lesson_index]
+    question, options, explanations = lesson_editing.quiz_to_text(lesson.get("quiz"))
+    qiskit, task = lesson.get("qiskit") or {}, lesson.get("code_task") or {}
+    widget = lesson.get("widget") or {}
+    preset_names = list(PRESETS)
+    widget_names = ["", *WIDGETS]
+    form: dict[str, str] = {}
 
-    with st.form(f"lesson_editor_{lesson_index}"):
-        title = st.text_input("Title", value=lesson["title"])
-        eyebrow = st.text_input("Section label", value=lesson["eyebrow"])
-        duration = st.text_input("Estimated time", value=lesson["duration"])
-        summary = st.text_area("Summary", value=lesson["summary"], height=90)
-        objectives = st.text_area("Learning objectives — one per line", value="\n".join(lesson["objectives"]), height=130)
-        explanation = st.text_area("Explanation — separate paragraphs with a blank line", value="\n\n".join(lesson["explanation"]), height=220)
-        latex = st.text_input(
-            "Formula (LaTeX)",
-            value=lesson.get("latex", lesson["equation"]),
-            help=r"Use KaTeX-compatible notation, for example: H|0\rangle = |+\rangle",
+    with st.form(f"lesson_editor_{lesson.get('id', lesson_index)}"):
+        basics, picture, predict, experiment, math_tab, code, reflect = st.tabs(
+            ["Basics", "Intuition", "Predict", "Experiment", "Math", "Code it", "Reflect"]
         )
-        misconception = st.text_area("Common misconception", value=lesson["misconception"], height=100)
-        checkpoint = st.text_area("Checkpoint question", value=lesson["checkpoint"], height=100)
-        saved = st.form_submit_button("Save lesson in this session", type="primary")
+        with basics:
+            form["title"] = st.text_input("Title", value=lesson.get("title", ""))
+            form["eyebrow"] = st.text_input("Section label", value=lesson.get("eyebrow", ""))
+            form["duration"] = st.text_input("Estimated time", value=lesson.get("duration", ""))
+            form["summary"] = st.text_area("Summary", value=lesson.get("summary", ""), height=90)
+            form["objectives"] = st.text_area("Learning objectives — one per line", value="\n".join(lesson.get("objectives", [])), height=110)
+        with picture:
+            form["intuition"] = st.text_area(
+                "The picture — paragraphs separated by a blank line (**bold** works)",
+                value="\n\n".join(lesson.get("intuition", [])), height=220,
+            )
+            form["widget_type"] = st.selectbox(
+                "Interactive widget", widget_names,
+                index=widget_names.index(widget.get("type", "")) if widget.get("type", "") in widget_names else 0,
+                format_func=lambda name: name or "(none)",
+            )
+            form["widget_caption"] = st.text_input("Widget caption", value=widget.get("caption", ""))
+        with predict:
+            form["quiz_question"] = st.text_input("Prediction question", value=question)
+            form["quiz_options"] = st.text_area("Options — one per line, start the correct one with *", value=options, height=120)
+            form["quiz_explanations"] = st.text_area(
+                "Why each option is right or tempting — one line per option, same order", value=explanations, height=140,
+            )
+        with experiment:
+            form["preset"] = st.selectbox(
+                "Worked-example circuit", preset_names,
+                index=preset_names.index(lesson["preset"]) if lesson.get("preset") in preset_names else 0,
+            )
+            form["try_this"] = st.text_area("Things to try — one per line", value="\n".join(lesson.get("try_this", [])), height=120)
+        with math_tab:
+            form["explanation"] = st.text_area(
+                "Explanation — paragraphs separated by a blank line", value="\n\n".join(lesson.get("explanation", [])), height=200,
+            )
+            form["latex"] = st.text_input(
+                "Formula (LaTeX)", value=lesson.get("latex", lesson.get("equation", "")),
+                help=r"KaTeX notation, for example: H|0\rangle = |+\rangle",
+            )
+            form["misconception"] = st.text_area("Common misconception", value=lesson.get("misconception", ""), height=90)
+        with code:
+            form["qiskit_intro"] = st.text_area("Introduction to the Qiskit idea", value=qiskit.get("intro", ""), height=80)
+            form["qiskit_code"] = st.text_area("Worked example (runs in the sandbox)", value=qiskit.get("code", ""), height=200)
+            form["qiskit_notes"] = st.text_area(
+                "Line-by-line notes — one per line: snippet | meaning",
+                value=lesson_editing.pairs_to_text(qiskit.get("notes", [])), height=100,
+            )
+            form["task_prompt"] = st.text_area("Exercise prompt (leave empty for no exercise)", value=task.get("prompt", ""), height=80)
+            form["task_starter"] = st.text_area("Starter code", value=task.get("starter", ""), height=140)
+            form["task_solution"] = st.text_area("Reference solution — must leave its circuit in qc", value=task.get("solution", ""), height=140)
+            form["task_hint"] = st.text_input("Hint", value=task.get("hint", ""))
+            match_options = ["state", "probs"]
+            form["task_match"] = st.selectbox(
+                "How answers are compared", match_options,
+                index=match_options.index(task.get("match", "state")) if task.get("match", "state") in match_options else 0,
+                format_func=lambda m: "Exact state (up to global phase)" if m == "state" else "Measurement probabilities",
+            )
+            form["task_required_ops"] = st.text_input(
+                "Required Qiskit operations — comma separated (e.g. h, cx)", value=", ".join(task.get("required_ops", [])),
+            )
+        with reflect:
+            form["checkpoint"] = st.text_area("Checkpoint question", value=lesson.get("checkpoint", ""), height=80)
+            form["key_ideas"] = st.text_area(
+                "Key ideas for instant feedback — one per line: idea | cue, cue | hint",
+                value=lesson_editing.ideas_to_text(lesson.get("key_ideas", [])), height=140,
+            )
+            form["watch_for"] = st.text_area(
+                "Misconceptions to flag — one per line: cue, cue | note",
+                value=lesson_editing.watch_to_text(lesson.get("watch_for", [])), height=90,
+            )
+        saved = st.form_submit_button("Check and save lesson in this session", type="primary")
 
     if saved:
-        updated = dict(lesson)
-        updated.update({
-            "title": title.strip() or lesson["title"],
-            "eyebrow": eyebrow.strip(),
-            "duration": duration.strip(),
-            "summary": summary.strip(),
-            "objectives": [line.strip() for line in objectives.splitlines() if line.strip()],
-            "explanation": [paragraph.strip() for paragraph in explanation.split("\n\n") if paragraph.strip()],
-            "latex": latex.strip(),
-            "misconception": misconception.strip(),
-            "checkpoint": checkpoint.strip(),
-        })
-        new_lessons = deepcopy(lessons)
-        new_lessons[lesson_index] = updated
-        st.session_state.site_lessons = new_lessons
-        st.success("Lesson saved. Open the learning path to preview it.")
+        updated, errors = lesson_editing.parse_lesson_edits(lesson, form, presets=set(PRESETS), widget_types=set(WIDGETS))
+        if not errors and updated.get("code_task"):
+            with st.spinner("Running the reference solution…"):
+                check = check_code_task(updated["code_task"]["solution"], updated["code_task"])
+            if not check["passed"]:
+                errors.append(f"The reference solution doesn't pass its own check: {check['message']}")
+        if not errors and updated.get("qiskit"):
+            with st.spinner("Running the worked example…"):
+                run = execute_notebook_code(updated["qiskit"]["code"])
+            if not run["success"]:
+                errors.append("The worked example raised an error:\n\n" + (run.get("error") or ""))
+        if errors:
+            st.error("Not saved yet — fix these first:\n\n" + "\n".join(f"- {e}" for e in errors))
+        else:
+            new_lessons = deepcopy(lessons)
+            new_lessons[lesson_index] = updated
+            st.session_state.site_lessons = new_lessons
+            st.success("Lesson checked and saved for this session. Open the learning path to preview it, then export below.")
 
     st.subheader("Import or export")
     export_payload = json.dumps(
