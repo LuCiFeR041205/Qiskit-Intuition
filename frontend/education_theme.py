@@ -28,7 +28,7 @@ NOTEBOOK_CSS = """
   --graphite: #2b2a27;
   --pencil: #6f6a5e;
   --pencil-light: #b9b19c;
-  --red-ink: #c0392b;
+  --red-ink: #ab2e22;  /* 5.2:1 on pink sticky notes, 6.2:1 on paper (WCAG AA) */
   --marker: #ffe867;
   --marker-green: #b8f0c8;
   --marker-pink: #ffc8d6;

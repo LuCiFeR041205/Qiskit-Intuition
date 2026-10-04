@@ -49,7 +49,7 @@ input[type=range] { accent-color: #1d3a8a; width: 100%; }
 <div class="wrap" id="root"></div>
 <script>
 const CFG = __CONFIG__;
-const INK = "#1d3a8a", RED = "#c0392b", PENCIL = "#6f6a5e", LIGHT = "#a9a08a", GRAPHITE = "#2b2a27";
+const INK = "#1d3a8a", RED = "#ab2e22", PENCIL = "#6f6a5e", LIGHT = "#a9a08a", GRAPHITE = "#2b2a27";
 let az = 0.52, el = 0.32;
 const SIZE = CFG.size || 250, R = SIZE * 0.34;
 const root = document.getElementById("root");
