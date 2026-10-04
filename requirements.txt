@@ -1,4 +1,4 @@
-streamlit>=1.32.0,<2.0.0
+streamlit>=1.44.0,<2.0.0
 qiskit>=1.0.0,<3.0.0
 qiskit-aer>=0.14.0,<0.18.0
 matplotlib>=3.8.0
