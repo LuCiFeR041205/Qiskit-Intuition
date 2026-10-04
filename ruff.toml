@@ -1,0 +1,11 @@
+[lint]
+# Pin the rule set so results don't change when a newer ruff widens its
+# defaults (ruff 0.16 did): pyflakes plus pycodestyle's error classes.
+select = ["E4", "E7", "E9", "F"]
+
+# Some modules must configure the environment (dotenv, MPLCONFIGDIR,
+# matplotlib backend) before importing heavy libraries.
+[lint.per-file-ignores]
+"backend/main.py" = ["E402"]
+"backend/core/*.py" = ["E402"]
+"frontend/streamlit_app.py" = ["E402"]

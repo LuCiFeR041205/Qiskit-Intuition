@@ -1,36 +1,43 @@
-# Contributing to Stark Quantum Console
+# Contributing to Qiskit Intuition
 
-Thank you for choosing to contribute to the **Stark Quantum Console**! We are committed to making quantum computing education intuitive, physical, and accessible to everyone. By contributing, you help shape a premium learning framework.
+Qiskit Intuition teaches quantum computing **intuition first**: every idea starts as a picture the learner can play with, becomes a prediction they test, and only then turns into math and Qiskit code.
 
----
+## Adding or editing a lesson
 
-## 🚀 How to Contribute
+Lessons live in `frontend/learning_content.py` as plain dictionaries. Each lesson moves through six stages, and each stage reads specific fields:
 
-### 1. Adding New Modules to the Curriculum
-Our curriculum is segmented into four distinct authorization levels. If you want to add modules:
-1. Update the sidebar database selection inside `app.py`.
-2. Implement the corresponding curriculum protocols under the selected level.
-3. Configure the **A.C.E.** AI system guide prompts inside `agents/feynman_agent.py` to support the new topic.
+| Stage | Fields |
+| --- | --- |
+| 1. Intuition | `intuition` (plain-language paragraphs, `**bold**` allowed), `widget` (interactive "feel it" widget) |
+| 2. Predict | `quiz` — `question`, `options`, `answer` (index), and one `explanations` entry per option |
+| 3. Experiment | `preset` (a key of `PRESETS`), `try_this`, optional `noise_toggle` |
+| 4. Formalize | `explanation`, `latex`, `misconception` |
+| 5. Code it | `qiskit` (`intro`, runnable `code`, line-by-line `notes`) and `code_task` |
+| 6. Reflect | `checkpoint`, `practice` (index into `PRACTICE`) |
 
-### 2. Enhancing 3D Projections
-The interactive Bloch sphere runs inside `components/bloch_sphere.py` using CDN-loaded **Three.js**. If you want to add visual HUD details (such as vector tracers, phase rotation paths, or dual-entanglement beams):
-1. Modify the raw HTML template inside `bloch_sphere.py`.
-2. Hook up any new parameters to receive variables dynamically from the backend state simulator.
+Guidelines:
 
-### 3. Improving the Composer and Sandbox
-The gate engines and notebook execution live in `/utils/`.
-- Ensure all Qiskit codes compiled by `quantum_engine.py` use the latest stable **Qiskit 1.0+** syntax.
-- All code executed inside the Notebook Sandbox (`notebook_engine.py`) must be executed safely, closing all generated matplotlib figures locally to avoid memory leaks.
+- **Picture before formula.** The intuition stage should be understandable without any equations.
+- **Wrong answers teach.** Every quiz option needs an explanation of why it is tempting or wrong.
+- **One new Qiskit idea per lesson.** The worked example should introduce a single API and run in the sandbox.
+- **Auto-checked exercises.** A `code_task` has a `starter`, a reference `solution` that leaves its circuit in `qc`, an optional `match` (`"state"` compares up to global phase, `"probs"` compares the measurement distribution), and optional `required_ops` (e.g. `["h", "cx"]`).
 
----
+Widgets are implemented in `frontend/intuition.py` (`bloch_dial`, `gate_play`, `shots`, `interference`, `basis_measure`, `bit_order`, `entangle`, `teleport`, `deutsch`, `grover`, `noise`, `routing`, `variational`). They are Python plus inline SVG; the draggable 3D sphere in `frontend/bloch3d.py` is plain HTML/JS. No front-end build step is needed. Lesson numbers come from their position in `LESSONS`, so you can insert a lesson anywhere.
 
-## 🎨 Design Guidelines
-Maintain the high-fidelity **Stark HUD** theme in any CSS modifications:
-- Backgrounds: Extremely dark blue/black (`#050A15`, `#02060D`).
-- Foreground/Accents: Monospace typography, glowing cyan (`#00F0FF`), glowing hot pink (`#ff0055`) for vectors, and deep indigo (`#2D1A3B`) for diagnostics.
-- Keep comments inside the Qiskit engine to a minimum. All conceptual explanations must be handled dynamically by the warm AI dialogue terminal.
+## Running Qiskit inside the app
 
----
+Streamlit runs each rerun on a fresh thread, and Qiskit's Rust extension can segfault when used that way. Any Qiskit call made in the app process must go through `@on_qiskit_thread` (`backend/core/qiskit_thread.py`), and should return plain Python, NumPy or Matplotlib objects. `tests/test_app_smoke.py` reruns every lesson stage to catch regressions.
 
-## 🛡️ Code of Conduct
-We support a warm, welcoming, and encouraging environment. Treat all collaborators with respect, just as A.C.E. treats the Explorer!
+## Code sandbox
+
+Learner code runs through `backend/core/notebook_engine.py`: an AST check (import allowlist, no dunder or module-escape attributes, no file writes), then a fresh Python process with a timeout. Keep new lesson code inside the allowlisted modules (Qiskit, Qiskit Aer, NumPy, Matplotlib, and small stdlib helpers).
+
+## Before opening a pull request
+
+```bash
+ruff check .
+pytest tests -q
+node web/tests/simulator.test.mjs
+```
+
+`tests/test_curriculum.py` runs every worked example and checks that each exercise's reference solution passes while its starter code does not, so a broken lesson fails the suite.

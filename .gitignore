@@ -43,3 +43,7 @@ out/
 
 # Local Hugging Face Space clone
 Qiskit-Intuition/
+
+# Local agent tooling state
+.swarm/
+.claude-flow/

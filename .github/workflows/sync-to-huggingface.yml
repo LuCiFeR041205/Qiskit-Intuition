@@ -37,7 +37,7 @@ jobs:
             --exclude '*.pyc' \
             --exclude '.env' \
             --exclude '.env.*' \
-            --exclude '.streamlit/' \
+            --exclude '.streamlit/secrets.toml' \
             --exclude '.swarm/' \
             --exclude '.claude-flow/' \
             --exclude '*.log' \

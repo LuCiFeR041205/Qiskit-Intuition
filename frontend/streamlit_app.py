@@ -3,6 +3,10 @@
 The app runs as a single Streamlit process on Hugging Face Spaces. Simulation,
 safe code execution, and tutoring all have in-process paths, so a separate API
 server is optional rather than required.
+
+Every lesson follows one loop: Intuition -> Predict -> Experiment ->
+Formalize -> Code it -> Reflect. Pictures and interaction come before
+equations, and every idea ends as runnable Qiskit code.
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ import html
 import json
 import math
 import os
+import re
 from copy import deepcopy
 from pathlib import Path
 
@@ -18,9 +23,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import matplotlib.pyplot as plt
 import streamlit as st
 
+from backend.core.exercise_checker import check_code_task
 from backend.core.notebook_engine import execute_notebook_code
 from backend.core.quantum_engine import QuantumEngine
 from backend.core.teaching_assistant import (
@@ -30,7 +35,10 @@ from backend.core.teaching_assistant import (
     review_qiskit_code,
 )
 from frontend.education_theme import inject_education_theme
-from frontend.learning_content import LESSONS, PRACTICE, PRESETS
+from frontend.intuition import render_circuit, render_probabilities, render_widget, show_html
+from frontend import notebook_store
+from frontend.bloch3d import bloch_view_3d
+from frontend.learning_content import GLOSSARY, LESSONS, PRACTICE, PRESETS, UNITS
 
 st.set_page_config(
     page_title="Qiskit Intuition — Learn quantum computing",
@@ -53,6 +61,11 @@ print(state.probabilities_dict())
 
 CONTENT_PATH = Path(__file__).with_name("site_content.json")
 
+GATE_OPTIONS = ["H", "X", "Y", "Z", "S", "T", "RX", "RY", "RZ", "CNOT", "CZ", "SWAP"]
+TWO_QUBIT_GATES = {"CNOT", "CZ", "SWAP"}
+ROTATION_GATES = {"RX", "RY", "RZ"}
+PAGES = ["Course map", "Learning path", "My notebook", "Playground"]
+
 
 def init_state() -> None:
     try:
@@ -62,7 +75,7 @@ def init_state() -> None:
 
     default_brand = {
         "name": "Qiskit Intuition",
-        "tagline": "Quantum computing, built from first principles",
+        "tagline": "Quantum computing, intuition first",
     }
     defaults = {
         "num_qubits": 1,
@@ -77,6 +90,13 @@ def init_state() -> None:
         "learning_stage": 0,
         "lesson_max_stage": {},
         "completed_lessons": [],
+        "quiz_answers": {},
+        "tasks_passed": [],
+        "notes": {},
+        "reflections": {},
+        "code_attempts": {},
+        "task_feedback": {},
+        "code_runs": {},
         "explanation_feedback": {},
         "author_mode": False,
         "playground_view": "Circuit builder",
@@ -100,7 +120,7 @@ def build_engine() -> QuantumEngine:
 
 
 def load_preset(name: str) -> None:
-    preset = PRESETS[name]
+    preset = PRESETS.get(name, PRESETS["Start at |0>"])
     st.session_state.num_qubits = preset["qubits"]
     st.session_state.gates = [dict(gate) for gate in preset["gates"]]
     st.session_state.noisy = False
@@ -112,14 +132,48 @@ def sync_workspace_to_circuit() -> None:
     st.session_state.last_result = None
 
 
+def navigate(page: str, playground_view: str | None = None) -> None:
+    """Switch pages from anywhere. Widget-backed keys can't be set after the
+    widget renders, so the change is applied at the start of the next run."""
+    st.session_state.pending_nav = page
+    if playground_view:
+        st.session_state.pending_playground_view = playground_view
+    st.rerun()
+
+
+def remember(store: str, item: str, widget_key: str) -> None:
+    """Copy a text widget into a notebook dict. Streamlit forgets widget values
+    when you leave the page; the dict keeps them (and gets saved)."""
+    text = st.session_state.get(widget_key, "")
+    entries = {k: v for k, v in st.session_state[store].items() if k != item}
+    if text.strip():
+        entries[item] = text
+    st.session_state[store] = entries
+
+
+def open_lesson(index: int, stage: int = 0) -> None:
+    st.session_state.selected_lesson = index
+    st.session_state.learning_stage = stage
+    navigate("Learning path")
+
+
+def next_lesson_index() -> int:
+    lessons = course_lessons()
+    done = set(st.session_state.completed_lessons)
+    for index, lesson in enumerate(lessons):
+        if lesson["id"] not in done:
+            return index
+    return len(lessons) - 1
+
+
 def sidebar() -> str:
     brand = st.session_state.site_brand
     brand_name = html.escape(str(brand.get("name", "Qiskit Intuition")))
-    brand_tagline = html.escape(str(brand.get("tagline", "Quantum computing, built from first principles")))
+    brand_tagline = html.escape(str(brand.get("tagline", "Quantum computing, intuition first")))
     st.sidebar.markdown(
         f"""
 <div class="brand">
-  <div class="brand-mark">Q</div>
+  <div class="brand-mark">Lab notebook · No. 1</div>
   <div class="brand-name">{brand_name}</div>
   <div class="brand-subtitle">{brand_tagline}</div>
 </div>
@@ -135,14 +189,13 @@ def sidebar() -> str:
             st.rerun()
         return "Content studio"
 
-    page = st.sidebar.radio(
-        "Navigation",
-        ["Learning path", "Playground"],
-        label_visibility="collapsed",
-        key="main_navigation",
-    )
+    pending = st.session_state.pop("pending_nav", None)
+    if pending in PAGES:
+        st.session_state.main_navigation = pending
+    page = st.sidebar.radio("Navigation", PAGES, label_visibility="collapsed", key="main_navigation")
 
     lessons = course_lessons()
+    done = set(st.session_state.completed_lessons)
     if page == "Learning path":
         st.sidebar.divider()
         st.sidebar.caption("CURRENT LESSON")
@@ -150,7 +203,7 @@ def sidebar() -> str:
             "Lesson",
             range(len(lessons)),
             index=min(int(st.session_state.selected_lesson), len(lessons) - 1),
-            format_func=lambda index: f"{index + 1}. {lessons[index]['title']}",
+            format_func=lambda index: f"{'✓' if lessons[index]['id'] in done else '○'}  {index + 1}. {lessons[index]['title']}",
             label_visibility="collapsed",
         )
         if selected != st.session_state.selected_lesson:
@@ -160,15 +213,18 @@ def sidebar() -> str:
 
     st.sidebar.divider()
     st.sidebar.caption("COURSE PROGRESS")
-    completed = len(set(st.session_state.completed_lessons))
+    completed = len(done & {lesson["id"] for lesson in lessons})
     st.sidebar.progress(completed / len(lessons))
-    st.sidebar.caption(f"{completed} of {len(lessons)} lessons completed")
+    st.sidebar.caption(
+        f"{completed} of {len(lessons)} lessons · {len(set(st.session_state.tasks_passed))} coding exercises solved"
+    )
+    if st.session_state.get("nb_storage_ok"):
+        st.sidebar.caption("💾 Notebook saved in this browser")
+    elif st.session_state.get("nb_hydrated"):
+        st.sidebar.caption("⚠ Not saved here — download it from My notebook")
 
     st.sidebar.divider()
-    if os.getenv("GEMINI_API_KEY"):
-        coach_label = "Model-enhanced coach"
-    else:
-        coach_label = "Built-in code coach"
+    coach_label = "Model-enhanced coach" if os.getenv("GEMINI_API_KEY") else "Built-in code coach"
     st.sidebar.markdown(
         f"""
 <div class="status-note"><span class="status-dot"></span>{coach_label}</div>
@@ -187,18 +243,116 @@ Simulation, lessons, and code review work without a separate server or API key.
     return page
 
 
+def inline_md(text: str) -> str:
+    """Escape text for HTML, keeping `code` and **bold** from lesson content."""
+    escaped = html.escape(text)
+    escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+    return re.sub(r"`(.+?)`", r"<code>\1</code>", escaped)
+
+
 def page_header(eyebrow: str, title: str, intro: str) -> None:
     st.markdown(f'<div class="eyebrow">{html.escape(eyebrow)}</div>', unsafe_allow_html=True)
     st.title(title)
     st.markdown(f'<div class="page-intro">{html.escape(intro)}</div>', unsafe_allow_html=True)
 
 
+# --------------------------------------------------------------------------- course map
+
 LEARNING_STAGES = [
-    ("Learn", "Build the mental model"),
-    ("Predict", "Commit before running"),
-    ("Experiment", "Test the circuit"),
-    ("Explain", "Make the result yours"),
+    ("Intuition", "Picture it first"),
+    ("Predict", "Commit to an answer"),
+    ("Experiment", "Test it in a circuit"),
+    ("Formalize", "Now the math"),
+    ("Code it", "Write the Qiskit"),
+    ("Reflect", "Explain it back"),
 ]
+
+
+def render_course_map() -> None:
+    lessons = course_lessons()
+    done = set(st.session_state.completed_lessons)
+    passed = set(st.session_state.tasks_passed)
+
+    show_html(
+        f"""
+<div class="cover-label">
+  <div class="label-kicker">Laboratory notebook · No. 1</div>
+  <div class="label-title">Quantum Computing</div>
+  <div class="label-line"><span>Subject</span><b>Qiskit, from the ground up</b></div>
+  <div class="label-line"><span>Method</span><b>picture → predict → test → math → code</b></div>
+  <div class="label-line"><span>Progress</span><b>{len(done & {lesson["id"] for lesson in lessons})} of {len(lessons)} experiments written up</b></div>
+</div>
+<p class="intro-note">No physics degree needed. Every idea starts as a <u>picture you can play with</u>, becomes a prediction you
+test on a simulator, and only then turns into math and Qiskit code. By the last page you'll have built superposition,
+interference, entanglement, Grover search and a trainable circuit yourself.</p>
+        """
+    )
+    loop = '<span class="loop-arrow">→</span>'.join(
+        f'<span class="loop-step"><span>{index + 1}</span>{label}<small>{detail}</small></span>'
+        for index, (label, detail) in enumerate(LEARNING_STAGES)
+    )
+    show_html(f'<div class="loop-row">{loop}</div>')
+
+    resume = next_lesson_index()
+    all_done = {lesson["id"] for lesson in lessons} <= done
+    if all_done:
+        resume = 0
+    started = bool(done or st.session_state.lesson_max_stage or st.session_state.quiz_answers)
+    if all_done:
+        label = "Course complete — review from lesson 1"
+    elif started:
+        label = f"Continue: {resume + 1}. {lessons[resume]['title']}"
+    else:
+        label = "Start lesson 1"
+    if st.button(f"{label}  →", type="primary", key="resume_course"):
+        same_lesson = resume == int(st.session_state.selected_lesson)
+        open_lesson(resume, int(st.session_state.learning_stage) if same_lesson and not all_done else 0)
+
+    unit_ids = [unit["id"] for unit in UNITS]
+    grouped: dict[str, list[tuple[int, dict]]] = {unit_id: [] for unit_id in unit_ids}
+    extra: list[tuple[int, dict]] = []
+    for index, lesson in enumerate(lessons):
+        grouped.get(lesson.get("unit"), extra).append((index, lesson))
+    units = [*UNITS, {"id": "more", "title": "More lessons", "blurb": ""}] if extra else UNITS
+    grouped["more"] = extra
+
+    columns = st.columns(2, gap="large")
+    for unit_index, unit in enumerate(units):
+        items = grouped.get(unit["id"], [])
+        if not items:
+            continue
+        unit_done = sum(1 for _, lesson in items if lesson["id"] in done)
+        with columns[unit_index % 2]:
+            with st.container(key=f"nb-card-unit-{unit['id']}"):
+                st.markdown(
+                    f'<div class="unit-head"><span>Unit {unit_index + 1}</span><strong>{html.escape(unit["title"])}</strong>'
+                    f'<small>{unit_done}/{len(items)} done</small></div><p class="unit-blurb">{html.escape(unit["blurb"])}</p>',
+                    unsafe_allow_html=True,
+                )
+                for index, lesson in items:
+                    status = "✓" if lesson["id"] in done else "○"
+                    code_badge = " · </> solved" if lesson["id"] in passed else ""
+                    left, right = st.columns([4, 1.2])
+                    with left:
+                        st.markdown(
+                            f'<div class="lesson-row {"done" if status == "✓" else ""}"><span>{status}</span>'
+                            f'<div><strong>{index + 1}. {html.escape(lesson["title"])}</strong>'
+                            f'<small>{html.escape(lesson.get("duration", ""))}{code_badge}</small></div></div>',
+                            unsafe_allow_html=True,
+                        )
+                    with right:
+                        if st.button("Open", key=f"map_open_{lesson['id']}", use_container_width=True):
+                            open_lesson(index)
+
+    with st.expander("Glossary — every term, intuition first"):
+        rows = "".join(
+            f"<tr><td><strong>{html.escape(term)}</strong></td><td>{html.escape(picture)}</td><td>{html.escape(formal)}</td></tr>"
+            for term, picture, formal in GLOSSARY
+        )
+        show_html(f'<table class="glossary"><thead><tr><th>Term</th><th>The picture</th><th>The precise version</th></tr></thead><tbody>{rows}</tbody></table>')
+
+
+# --------------------------------------------------------------------------- learning path
 
 
 def set_learning_stage(stage: int, lesson_id: str) -> None:
@@ -215,14 +369,22 @@ def render_learning_stepper(stage: int) -> None:
         status = "complete" if index < stage else "current" if index == stage else "upcoming"
         marker = "✓" if index < stage else str(index + 1)
         rendered.append(
-            f"""
-<div class="journey-step {status}">
-  <span class="journey-marker">{marker}</span>
-  <div><strong>{label}</strong><small>{detail}</small></div>
-</div>
-            """
+            f'<div class="journey-step {status}"><span class="journey-marker">{marker}</span>'
+            f"<div><strong>{label}</strong><small>{detail}</small></div></div>"
         )
-    st.markdown(f'<div class="journey-stepper">{"".join(rendered)}</div>', unsafe_allow_html=True)
+    show_html(f'<div class="journey-stepper">{"".join(rendered)}</div>')
+
+
+def stage_nav(lesson: dict, stage: int, next_label: str, *, before_next=None, next_disabled: bool = False) -> None:
+    back, forward = st.columns([1, 2])
+    with back:
+        if stage > 0 and st.button(f"←  {LEARNING_STAGES[stage - 1][0]}", use_container_width=True, key=f"back_{stage}"):
+            set_learning_stage(stage - 1, lesson["id"])
+    with forward:
+        if st.button(f"{next_label}  →", type="primary", use_container_width=True, key=f"next_{stage}", disabled=next_disabled):
+            if before_next:
+                before_next()
+            set_learning_stage(stage + 1, lesson["id"])
 
 
 def render_learning_path() -> None:
@@ -230,237 +392,443 @@ def render_learning_path() -> None:
     selected = min(int(st.session_state.selected_lesson), len(lessons) - 1)
     lesson = lessons[selected]
     stage = min(max(int(st.session_state.learning_stage), 0), len(LEARNING_STAGES) - 1)
+    unit_titles = {unit["id"]: unit["title"] for unit in UNITS}
 
-    st.markdown(
+    show_html(
         f"""
 <div class="path-context">
   <span>Lesson {selected + 1} of {len(lessons)}</span>
-  <span>{html.escape(lesson['duration'])}</span>
-  <span>{html.escape(lesson['eyebrow'])}</span>
+  <span>{html.escape(unit_titles.get(lesson.get("unit"), lesson.get("eyebrow", "")))}</span>
+  <span>{html.escape(lesson.get("duration", ""))}</span>
 </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
-    page_header(lesson["eyebrow"], lesson["title"], lesson["summary"])
+    page_header(lesson.get("eyebrow", ""), lesson["title"], lesson.get("summary", ""))
     render_learning_stepper(stage)
 
-    if stage == 0:
-        render_learn_stage(lesson)
-    elif stage == 1:
-        render_predict_stage(lesson)
-    elif stage == 2:
-        render_experiment_stage(lesson)
+    renderers = [
+        render_intuition_stage,
+        render_predict_stage,
+        render_experiment_stage,
+        render_formalize_stage,
+        render_code_stage,
+    ]
+    if stage < len(renderers):
+        renderers[stage](lesson)
     else:
-        render_explain_stage(lesson, selected, len(lessons))
+        render_reflect_stage(lesson, selected, len(lessons))
+    render_margin_notes(lesson)
 
 
-def render_learn_stage(lesson: dict) -> None:
-    st.markdown('<div class="stage-kicker">Step 1 · Learn</div>', unsafe_allow_html=True)
-    concept, outcomes = st.columns([1.55, 0.9], gap="large")
-    with concept:
-        st.subheader("Build the mental model")
-        for paragraph in lesson["explanation"]:
-            st.write(paragraph)
-        st.latex(lesson.get("latex") or lesson["equation"])
-    with outcomes:
-        objectives = "".join(f"<li>{html.escape(item)}</li>" for item in lesson["objectives"])
-        st.markdown(
+def render_margin_notes(lesson: dict) -> None:
+    lesson_id = lesson["id"]
+    with st.container(key=f"nb-margin-notes-{lesson_id}"):
+        st.markdown('<div class="margin-title">✎ My margin notes</div>', unsafe_allow_html=True)
+        st.text_area(
+            "Margin notes",
+            value=st.session_state.notes.get(lesson_id, ""),
+            key=f"margin_{lesson_id}",
+            height=120,
+            label_visibility="collapsed",
+            placeholder="Scribble anything — questions, an 'aha!', a sketch in words. It's kept in your notebook.",
+            on_change=remember,
+            args=("notes", lesson_id, f"margin_{lesson_id}"),
+        )
+
+
+def render_intuition_stage(lesson: dict) -> None:
+    st.markdown('<div class="stage-kicker">Step 1 · Intuition</div>', unsafe_allow_html=True)
+    picture, goals = st.columns([1.6, 1], gap="large")
+    with picture:
+        st.subheader("The picture")
+        for paragraph in lesson.get("intuition") or lesson.get("explanation", []):
+            st.markdown(paragraph)
+    with goals:
+        objectives = "".join(f"<li>{inline_md(item)}</li>" for item in lesson.get("objectives", []))
+        show_html(
             f"""
 <div class="content-card stage-sidecard">
-  <strong>What you will be able to do</strong>
+  <strong>By the end of this lesson you can</strong>
   <ul class="objective-list">{objectives}</ul>
 </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"""
-<div class="callout warning compact-callout">
-  <strong>Watch for this</strong>
-  <p>{html.escape(lesson['misconception'])}</p>
-</div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
-    if st.button("Continue to prediction  →", type="primary", use_container_width=True):
-        set_learning_stage(1, lesson["id"])
+    if lesson.get("widget"):
+        st.markdown('<div class="feel-it"><span>Try it!</span><strong>play first — the math comes later</strong></div>', unsafe_allow_html=True)
+        with st.container(key=f"nb-card-widget-{lesson['id']}"):
+            render_widget(lesson["widget"], key=f"w_{lesson['id']}")
+
+    stage_nav(lesson, 0, "Make a prediction")
 
 
 def render_predict_stage(lesson: dict) -> None:
     st.markdown('<div class="stage-kicker">Step 2 · Predict</div>', unsafe_allow_html=True)
     st.subheader("Commit to an answer before the simulator shows it")
-    st.markdown(
+    quiz = lesson.get("quiz")
+    if not quiz:
+        render_free_prediction(lesson)
+        return
+
+    show_html(
+        f"""
+<div class="prediction-prompt">
+  <span>Prediction</span>
+  <strong>{html.escape(quiz["question"])}</strong>
+  <p>Being wrong here is useful — the surprise is what makes the idea stick.</p>
+</div>
+        """
+    )
+    answers = st.session_state.quiz_answers
+    locked = answers.get(lesson["id"])
+    choice = st.radio(
+        "Your answer",
+        range(len(quiz["options"])),
+        format_func=lambda index: quiz["options"][index],
+        index=locked if locked is not None else None,
+        key=f"quiz_{lesson['id']}",
+        disabled=locked is not None,
+        label_visibility="collapsed",
+    )
+
+    if locked is None:
+        if st.button("Lock in my answer", type="primary", disabled=choice is None, key=f"lock_{lesson['id']}"):
+            st.session_state.quiz_answers = {**answers, lesson["id"]: choice}
+            st.rerun()
+        if st.button("←  Back to the picture", key=f"predict_back_{lesson['id']}"):
+            set_learning_stage(0, lesson["id"])
+        return
+
+    correct = quiz["answer"]
+    explanations = quiz.get("explanations", [])
+    if locked == correct:
+        st.success(f"**Correct.** {explanations[locked] if locked < len(explanations) else ''}")
+    else:
+        st.warning(
+            f"**Not quite.** {explanations[locked] if locked < len(explanations) else ''}  \n"
+            f"The answer is **{quiz['options'][correct]}**. Run the experiment and see it for yourself."
+        )
+    with st.expander("Why each option is tempting"):
+        for index, option in enumerate(quiz["options"]):
+            mark = "✓" if index == correct else "✗"
+            reason = explanations[index] if index < len(explanations) else ""
+            st.markdown(f"{mark} **{option}** — {reason}")
+    if st.button("Change my answer", key=f"unlock_{lesson['id']}"):
+        st.session_state.quiz_answers = {k: v for k, v in answers.items() if k != lesson["id"]}
+        st.rerun()
+
+    stage_nav(lesson, 1, "Run the experiment", before_next=lambda: load_preset(lesson["preset"]))
+
+
+def render_free_prediction(lesson: dict) -> None:
+    """Fallback for lessons (e.g. imported from older content files) without a quiz."""
+    show_html(
         f"""
 <div class="prediction-prompt">
   <span>Checkpoint</span>
-  <strong>{html.escape(lesson['checkpoint'])}</strong>
-  <p>Describe the final state or measurement pattern and give one reason. Being wrong here is useful—the comparison is the lesson.</p>
+  <strong>{html.escape(lesson.get("checkpoint", ""))}</strong>
+  <p>Describe the final state or measurement pattern and give one reason.</p>
 </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
-    prediction_key = f"prediction_{lesson['id']}"
-    with st.form(f"prediction_form_{lesson['id']}"):
-        prediction = st.text_area(
-            "Your prediction",
-            key=prediction_key,
-            placeholder="I expect… because…",
-            height=150,
-        )
-        run = st.form_submit_button(
-            "Lock prediction and run the experiment  →",
-            type="primary",
-            use_container_width=True,
-        )
-    if run:
-        if not prediction.strip():
-            st.warning("Write a short prediction before running the experiment.")
-        else:
-            load_preset(lesson["preset"])
-            set_learning_stage(2, lesson["id"])
-    if st.button("←  Review the concept"):
-        set_learning_stage(0, lesson["id"])
+    prediction = st.text_area("Your prediction", key=f"prediction_{lesson['id']}", placeholder="I expect… because…", height=130)
+    stage_nav(lesson, 1, "Run the experiment", before_next=lambda: load_preset(lesson["preset"]), next_disabled=not prediction.strip())
 
 
-def render_guided_builder(lesson: dict) -> tuple[QuantumEngine, dict[str, float]]:
-    prediction = st.session_state.get(f"prediction_{lesson['id']}", "")
-    st.markdown(
-        f"""
-<div class="prediction-recap">
-  <span>Your prediction</span>
-  <p>{html.escape(prediction)}</p>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
+def prediction_summary(lesson: dict) -> str:
+    quiz = lesson.get("quiz")
+    locked = st.session_state.quiz_answers.get(lesson["id"])
+    if quiz and locked is not None:
+        verdict = "✓" if locked == quiz["answer"] else "✗"
+        return f"{verdict} {quiz['options'][locked]}"
+    return st.session_state.get(f"prediction_{lesson['id']}", "")
 
-    st.markdown("#### Change one operation at a time")
+
+def gate_controls(prefix: str) -> dict | None:
+    """Gate/target/parameter pickers. Returns the operation to add, or None."""
     gate_col, target_col, parameter_col, add_col = st.columns([1.15, 0.9, 1.15, 0.9])
     with gate_col:
-        gate_name = st.selectbox("Gate", ["H", "X", "Y", "Z", "S", "T", "RX", "RY", "RZ", "CNOT"], key="guided_gate")
+        gate_name = st.selectbox("Gate", GATE_OPTIONS, key=f"{prefix}_gate")
     with target_col:
-        target = st.selectbox(
-            "Target",
-            list(range(st.session_state.num_qubits)),
-            format_func=lambda qubit: f"q{qubit}",
-            key="guided_target",
-        )
+        target = st.selectbox("Target", list(range(st.session_state.num_qubits)), format_func=lambda q: f"q{q}", key=f"{prefix}_target")
     control = None
     angle = None
     with parameter_col:
-        if gate_name == "CNOT":
-            controls = [qubit for qubit in range(st.session_state.num_qubits) if qubit != target]
+        if gate_name in TWO_QUBIT_GATES:
+            controls = [q for q in range(st.session_state.num_qubits) if q != target]
+            label = "Other qubit" if gate_name == "SWAP" else "Control"
             if controls:
-                control = st.selectbox("Control", controls, format_func=lambda qubit: f"q{qubit}", key="guided_control")
+                control = st.selectbox(label, controls, format_func=lambda q: f"q{q}", key=f"{prefix}_control")
             else:
-                st.selectbox("Control", ["Needs 2 qubits"], disabled=True, key="guided_control_disabled")
-        elif gate_name in {"RX", "RY", "RZ"}:
-            angle = st.slider("Angle (× π)", -2.0, 2.0, 0.5, 0.05, key="guided_angle") * math.pi
+                st.selectbox(label, ["Needs 2 qubits"], disabled=True, key=f"{prefix}_control_disabled")
+        elif gate_name in ROTATION_GATES:
+            angle = st.slider("Angle (× π)", -2.0, 2.0, 0.5, 0.05, key=f"{prefix}_angle") * math.pi
         else:
-            st.selectbox("Parameter", ["None"], disabled=True, key="guided_parameter")
+            st.selectbox("Parameter", ["None"], disabled=True, key=f"{prefix}_parameter")
     with add_col:
         st.markdown("<div style='height:1.75rem'></div>", unsafe_allow_html=True)
-        can_add = gate_name != "CNOT" or control is not None
-        if st.button("＋  Add gate", type="primary", use_container_width=True, disabled=not can_add, key="guided_add"):
+        can_add = gate_name not in TWO_QUBIT_GATES or control is not None
+        if st.button("＋  Add gate", type="primary", use_container_width=True, disabled=not can_add, key=f"{prefix}_add"):
             operation = {"gate": gate_name, "target": target, "control": control}
             if angle is not None:
                 operation["angle"] = angle
-            st.session_state.gates.append(operation)
-            sync_workspace_to_circuit()
-            st.rerun()
+            return operation
+    return None
+
+
+def gate_label(gate: dict) -> str:
+    name = gate["gate"]
+    if name in TWO_QUBIT_GATES and gate.get("control") is not None:
+        return f"{name} q{gate['control']}→q{gate['target']}" if name != "SWAP" else f"SWAP q{gate['control']}↔q{gate['target']}"
+    if name in ROTATION_GATES and gate.get("angle") is not None:
+        return f"{name}({gate['angle'] / math.pi:.2f}π) q{gate['target']}"
+    return f"{name} q{gate['target']}"
+
+
+def render_guided_builder(lesson: dict) -> None:
+    operation = gate_controls("guided")
+    if operation:
+        st.session_state.gates.append(operation)
+        sync_workspace_to_circuit()
+        st.rerun()
 
     sequence = st.session_state.gates
     chips = "".join(
-        f'<span class="gate-chip"><small>{index + 1}</small><strong>{html.escape(gate["gate"])}</strong><em>q{gate["target"]}</em></span>'
+        f'<span class="gate-chip"><small>{index + 1}</small><strong>{html.escape(gate_label(gate))}</strong></span>'
         for index, gate in enumerate(sequence)
-    )
-    if not chips:
-        chips = '<span class="empty-sequence">No gates yet—the register starts in |0…0⟩.</span>'
-    st.markdown(f'<div class="guided-sequence">{chips}</div>', unsafe_allow_html=True)
+    ) or '<span class="empty-sequence">No gates yet — the register starts in |0…0⟩.</span>'
+    show_html(f'<div class="guided-sequence">{chips}</div>')
 
-    undo, reset, spacer = st.columns([1, 1.25, 2.5])
+    undo, clear, reset, qubits = st.columns([1, 1, 1.4, 1.3])
     with undo:
         if st.button("↶  Undo", use_container_width=True, disabled=not sequence, key="guided_undo"):
             st.session_state.gates = st.session_state.gates[:-1]
+            sync_workspace_to_circuit()
+            st.rerun()
+    with clear:
+        if st.button("Clear", use_container_width=True, disabled=not sequence, key="guided_clear"):
+            st.session_state.gates = []
             sync_workspace_to_circuit()
             st.rerun()
     with reset:
         if st.button("Reset worked example", use_container_width=True, key="guided_reset"):
             load_preset(lesson["preset"])
             st.rerun()
-    with spacer:
-        st.caption("The worked example is loaded automatically from your prediction step.")
+    with qubits:
+        count = st.selectbox(
+            "Qubits", [1, 2, 3, 4], index=st.session_state.num_qubits - 1, key="guided_qubits", label_visibility="collapsed",
+            format_func=lambda n: f"{n} qubit{'s' if n > 1 else ''}",
+        )
+        if count != st.session_state.num_qubits:
+            set_qubit_count(count)
 
-    engine = build_engine()
-    probabilities = engine.get_probabilities()
-    return engine, probabilities
+
+def set_qubit_count(count: int) -> None:
+    st.session_state.num_qubits = count
+    st.session_state.gates = [
+        gate for gate in st.session_state.gates
+        if gate["target"] < count and (gate.get("control") is None or gate["control"] < count)
+    ]
+    sync_workspace_to_circuit()
+    st.rerun()
+
+
+def render_bloch_row(engine: QuantumEngine) -> None:
+    vectors = engine.run_simulation()
+    bloch_view_3d([
+        {"title": f"q{qubit}", "vector": [data["x"], data["y"], data["z"]]}
+        for qubit, data in vectors.items()
+    ])
 
 
 def render_experiment_stage(lesson: dict) -> None:
     st.markdown('<div class="stage-kicker">Step 3 · Experiment</div>', unsafe_allow_html=True)
-    st.subheader("Compare the circuit with your prediction")
-    engine, probabilities = render_guided_builder(lesson)
+    st.subheader("Test your prediction on a simulator")
+
+    recap, tries = st.columns([1, 1.5], gap="large")
+    with recap:
+        show_html(f'<div class="prediction-recap"><span>Your prediction</span><p>{html.escape(prediction_summary(lesson))}</p></div>')
+    with tries:
+        items = "".join(f"<li>{inline_md(item)}</li>" for item in lesson.get("try_this", []))
+        if items:
+            show_html(f'<div class="content-card try-card"><strong>Things to try</strong><ol>{items}</ol></div>')
+
+    st.markdown("#### Build — change one operation at a time")
+    render_guided_builder(lesson)
+    if lesson.get("noise_toggle"):
+        st.toggle("Include device noise", key="noisy", help="Adds a simple depolarizing-noise model to sampled probabilities.")
+
+    engine = build_engine()
+    noisy = bool(lesson.get("noise_toggle") and st.session_state.noisy)
+    probabilities = engine.get_probabilities(noisy=noisy)
+    ideal = engine.get_probabilities() if noisy else None
 
     circuit_col, probability_col = st.columns([1.15, 1], gap="large")
     with circuit_col:
         st.markdown("**Circuit**")
-        figure = engine.get_circuit_figure()
-        st.pyplot(figure, clear_figure=True, use_container_width=True)
-        plt.close(figure)
+        render_circuit(engine)
     with probability_col:
-        st.markdown("**What measurement can return**")
-        render_probabilities(probabilities)
-        st.caption("Bit strings follow Qiskit's display order: q0 is the rightmost bit.")
+        st.markdown("**What measurement can return**" + (" (4000 noisy shots)" if noisy else ""))
+        render_probabilities(probabilities, compare=ideal, compare_label="ideal simulation" if noisy else "")
+        st.caption("Bit strings follow Qiskit's order: q0 is the rightmost bit.")
 
-    st.markdown(
-        f"<div class='callout'><strong>Read the result</strong><p>{html.escape(describe_circuit(st.session_state.gates, probabilities))}</p></div>",
-        unsafe_allow_html=True,
-    )
-    with st.expander("See the state and matching Qiskit code"):
-        state = engine.get_statevector().data
-        st.latex(statevector_latex(state, st.session_state.num_qubits))
+    st.markdown("**Each qubit's arrow**")
+    render_bloch_row(engine)
+    show_html(f"<div class='callout'><strong>Read the result</strong><p>{html.escape(describe_circuit(st.session_state.gates, probabilities))}</p></div>")
+    with st.expander("See the exact state and the matching Qiskit code"):
+        st.latex(statevector_latex(engine.get_statevector().data, st.session_state.num_qubits))
         st.code(engine.get_qiskit_code(), language="python")
 
-    back, explain = st.columns([1, 2])
-    with back:
-        if st.button("←  Edit prediction", use_container_width=True):
-            set_learning_stage(1, lesson["id"])
-    with explain:
-        if st.button("Explain what happened  →", type="primary", use_container_width=True):
-            set_learning_stage(3, lesson["id"])
+    stage_nav(lesson, 2, "Now the math")
 
 
-def render_explain_stage(lesson: dict, lesson_index: int, lesson_count: int) -> None:
-    st.markdown('<div class="stage-kicker">Step 4 · Explain</div>', unsafe_allow_html=True)
-    st.subheader("Turn the result into understanding")
-    st.markdown(
+def render_formalize_stage(lesson: dict) -> None:
+    st.markdown('<div class="stage-kicker">Step 4 · Formalize</div>', unsafe_allow_html=True)
+    concept, side = st.columns([1.55, 0.9], gap="large")
+    with concept:
+        st.subheader("Put numbers on the picture")
+        for paragraph in lesson.get("explanation", []):
+            st.markdown(paragraph)
+        st.latex(lesson.get("latex") or lesson.get("equation", ""))
+    with side:
+        show_html(
+            f"""
+<div class="callout warning compact-callout">
+  <strong>Common misconception</strong>
+  <p>{html.escape(lesson.get("misconception", ""))}</p>
+</div>
+            """
+        )
+        if lesson.get("widget"):
+            st.caption("Go back to the picture any time — the math describes exactly what the widget showed.")
+    stage_nav(lesson, 3, "Write it in Qiskit")
+
+
+def render_run_output(result: dict) -> None:
+    if result["success"]:
+        if result.get("stdout"):
+            st.code(result["stdout"], language="text")
+        else:
+            st.caption("The code ran but printed nothing.")
+        for figure in result.get("figures", []):
+            st.image(figure, use_container_width=True)
+    else:
+        st.error("The code raised an error:")
+        st.code(result.get("error") or result.get("stderr") or "Unknown error", language="text")
+
+
+def render_code_stage(lesson: dict) -> None:
+    st.markdown('<div class="stage-kicker">Step 5 · Code it</div>', unsafe_allow_html=True)
+    qiskit = lesson.get("qiskit")
+    task = lesson.get("code_task")
+    if not qiskit and not task:
+        st.info("This lesson has no coding step.")
+        stage_nav(lesson, 4, "Reflect")
+        return
+
+    lesson_id = lesson["id"]
+    if qiskit:
+        st.subheader("The Qiskit for this idea")
+        st.markdown(qiskit.get("intro", ""))
+        editor, notes = st.columns([1.35, 1], gap="large")
+        with editor:
+            code = st.text_area("Worked example", value=qiskit["code"], height=300, key=f"worked_{lesson_id}")
+            run, send = st.columns(2)
+            with run:
+                if st.button("▶  Run", type="primary", use_container_width=True, key=f"run_worked_{lesson_id}"):
+                    with st.spinner("Running in the sandbox…"):
+                        st.session_state.code_runs = {**st.session_state.code_runs, lesson_id: execute_notebook_code(code)}
+            with send:
+                if st.button("Open in the code playground", use_container_width=True, key=f"send_{lesson_id}"):
+                    st.session_state.workspace_code = code
+                    st.session_state.last_result = None
+                    navigate("Playground", "Qiskit code")
+        with notes:
+            st.markdown("**Line by line**")
+            for snippet, meaning in qiskit.get("notes", []):
+                st.markdown(f"`{snippet}` — {meaning}")
+            run_result = st.session_state.code_runs.get(lesson_id)
+            if run_result:
+                st.markdown("**Output**")
+                render_run_output(run_result)
+        if qiskit.get("real_hardware"):
+            with st.expander("Run it on real IBM quantum hardware"):
+                st.code(qiskit["real_hardware"], language="python")
+                st.caption(
+                    "Needs `pip install qiskit-ibm-runtime`, a free IBM Quantum account and internet access, "
+                    "so it can't run in this sandbox. Put it after the worked example on your own machine."
+                )
+
+    if task:
+        st.divider()
+        st.subheader("Your turn")
+        solved = lesson_id in st.session_state.tasks_passed
+        show_html(f'<div class="task-card {"solved" if solved else ""}"><span>{"Solved ✓" if solved else "Exercise"}</span><p>{inline_md(task["prompt"])}</p></div>')
+        attempt = st.text_area(
+            "Your code",
+            value=st.session_state.code_attempts.get(lesson_id, task.get("starter", "")),
+            height=220,
+            key=f"task_{lesson_id}",
+            on_change=remember,
+            args=("code_attempts", lesson_id, f"task_{lesson_id}"),
+        )
+        check, hint, solution = st.columns([1.2, 1, 1])
+        with check:
+            if st.button("✓  Check my code", type="primary", use_container_width=True, key=f"check_{lesson_id}"):
+                remember("code_attempts", lesson_id, f"task_{lesson_id}")
+                with st.spinner("Running and comparing with the target…"):
+                    outcome = check_code_task(attempt, task)
+                st.session_state.task_feedback = {**st.session_state.task_feedback, lesson_id: outcome}
+                if outcome["passed"]:
+                    st.session_state.tasks_passed = list(dict.fromkeys([*st.session_state.tasks_passed, lesson_id]))
+        with hint:
+            with st.popover("Hint", use_container_width=True):
+                st.markdown(task.get("hint", "Re-read the worked example above."))
+        with solution:
+            with st.popover("Show a solution", use_container_width=True):
+                st.code(task["solution"], language="python")
+        feedback = st.session_state.task_feedback.get(lesson_id)
+        if feedback:
+            (st.success if feedback["passed"] else st.warning)(feedback["message"])
+            if feedback.get("stdout"):
+                st.code(feedback["stdout"], language="text")
+
+    stage_nav(lesson, 4, "Reflect")
+
+
+def render_reflect_stage(lesson: dict, lesson_index: int, lesson_count: int) -> None:
+    st.markdown('<div class="stage-kicker">Step 6 · Reflect</div>', unsafe_allow_html=True)
+    st.subheader("Explain it back in your own words")
+    show_html(
         f"""
 <div class="explanation-brief">
   <strong>Explain the evidence</strong>
-  <p>Return to the question below. Use the circuit sequence, amplitudes, or probabilities as evidence—not only an analogy.</p>
-  <blockquote>{html.escape(lesson['checkpoint'])}</blockquote>
+  <p>Use what you saw — the arrow, the bars, the amplitudes — not only an analogy. If you can explain it, you own it.</p>
+  <blockquote>{html.escape(lesson.get("checkpoint", ""))}</blockquote>
 </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     reflection_key = f"reflection_{lesson['id']}"
     feedback_key = lesson["id"]
     final_lesson = lesson_index == lesson_count - 1
-    completion_label = "Complete course" if final_lesson else "Complete lesson and continue  →"
+    completion_label = "Complete the course" if final_lesson else "Complete lesson and continue  →"
     with st.form(f"explanation_form_{lesson['id']}"):
         reflection = st.text_area(
             "Your explanation",
+            value=st.session_state.reflections.get(lesson["id"], ""),
             key=reflection_key,
             placeholder="The result shows… This happens because…",
-            height=175,
+            height=160,
         )
         check_col, complete_col = st.columns([1, 1.4])
         with check_col:
             check_reasoning = st.form_submit_button("Check my reasoning", use_container_width=True)
         with complete_col:
             complete_lesson = st.form_submit_button(completion_label, type="primary", use_container_width=True)
+
+    if check_reasoning or complete_lesson:
+        remember("reflections", lesson["id"], reflection_key)
 
     if check_reasoning:
         if not reflection.strip():
@@ -472,137 +840,47 @@ def render_explain_stage(lesson: dict, lesson_index: int, lesson_count: int) -> 
             )
             with st.spinner("Checking the explanation against the circuit…"):
                 answer = answer_tutor(prompt, current_tutor_context(), use_model=True)
-            feedback = dict(st.session_state.explanation_feedback)
-            feedback[feedback_key] = answer["reply"]
-            st.session_state.explanation_feedback = feedback
+            st.session_state.explanation_feedback = {**st.session_state.explanation_feedback, feedback_key: answer["reply"]}
 
     if complete_lesson:
         if not reflection.strip():
             st.warning("Explain the result in your own words before completing the lesson.")
         else:
-            done = list(dict.fromkeys([*st.session_state.completed_lessons, lesson["id"]]))
-            st.session_state.completed_lessons = done
-            if lesson_index < lesson_count - 1:
+            st.session_state.completed_lessons = list(dict.fromkeys([*st.session_state.completed_lessons, lesson["id"]]))
+            if not final_lesson:
                 st.session_state.selected_lesson = lesson_index + 1
                 st.session_state.learning_stage = 0
+            else:
+                st.balloons()
             st.rerun()
 
-    if st.button("←  Revisit experiment"):
-        set_learning_stage(2, lesson["id"])
+    if st.button("←  Code it", key="reflect_back"):
+        set_learning_stage(4, lesson["id"])
 
     feedback = st.session_state.explanation_feedback.get(feedback_key)
     if feedback:
         st.markdown('<div class="coach-feedback"><span>Coach feedback</span></div>', unsafe_allow_html=True)
         st.markdown(feedback)
 
-    challenge = PRACTICE[min(lesson_index // 2, len(PRACTICE) - 1)]
+    practice_index = min(int(lesson.get("practice", lesson_index // 2)), len(PRACTICE) - 1)
+    challenge = PRACTICE[practice_index]
     with st.expander("Optional transfer challenge"):
         st.markdown(f"**{challenge['title']}**")
         st.write(challenge["goal"])
-        st.caption("Use this after completing the lesson to test the same idea in a new circuit.")
+        st.caption("Test the same idea in a new circuit, in the open playground.")
         if st.button("Open challenge in the playground", key=f"challenge_{lesson['id']}"):
-            st.session_state.selected_practice = min(lesson_index // 2, len(PRACTICE) - 1)
+            st.session_state.selected_practice = practice_index
             st.session_state.active_challenge = True
             st.session_state.num_qubits = challenge["qubits"]
             st.session_state.gates = []
-            st.session_state.playground_view = "Circuit builder"
-            st.session_state.main_navigation = "Playground"
             sync_workspace_to_circuit()
-            st.rerun()
+            navigate("Playground", "Circuit builder")
 
-    completed = lesson["id"] in st.session_state.completed_lessons
-    if completed:
-        st.success("This lesson is complete. You can revisit any step or continue when ready.")
-
-
-def render_course() -> None:
-    lessons = course_lessons()
-    lesson_titles = [f"{item['number']}. {item['title']}" for item in lessons]
-    selected = st.selectbox(
-        "Choose a lesson",
-        range(len(LESSONS)),
-        index=int(st.session_state.selected_lesson),
-        format_func=lambda index: lesson_titles[index],
-    )
-    st.session_state.selected_lesson = selected
-    lesson = lessons[selected]
-
-    page_header(lesson["eyebrow"], lesson["title"], lesson["summary"])
-    st.markdown(
-        f"""
-<div class="lesson-meta">
-  <span class="meta-pill">Lesson {lesson['number']} of {len(lessons)}</span>
-  <span class="meta-pill">{html.escape(lesson['duration'])}</span>
-  <span class="meta-pill">Includes a lab</span>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    left, right = st.columns([1.5, 1], gap="large")
-    with left:
-        st.subheader("The core idea")
-        for paragraph in lesson["explanation"]:
-            st.write(paragraph)
-        st.latex(lesson.get("latex") or lesson["equation"])
-
-    with right:
-        objectives = "".join(f"<li>{html.escape(item)}</li>" for item in lesson["objectives"])
-        st.markdown(
-            f"""
-<div class="content-card">
-  <strong>By the end, you can…</strong>
-  <ul class="objective-list">{objectives}</ul>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown("<div style='height:.8rem'></div>", unsafe_allow_html=True)
-        st.markdown(
-            f"""
-<div class="callout warning">
-  <strong>Common misconception</strong>
-  <p>{html.escape(lesson['misconception'])}</p>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.subheader("Test the idea")
-    st.markdown(
-        """
-<div class="step-row"><div class="step-number">1</div><div><strong>Predict</strong><br>Write down what you expect before running the circuit.</div></div>
-<div class="step-row"><div class="step-number">2</div><div><strong>Build</strong><br>Load the worked example, then change one gate at a time.</div></div>
-<div class="step-row"><div class="step-number">3</div><div><strong>Explain</strong><br>Use amplitudes or joint probabilities—not just an analogy—to explain the result.</div></div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    action, prompt = st.columns([1, 2], gap="large")
-    with action:
-        if st.button(f"Load “{lesson['preset']}” in the lab  →", type="primary", use_container_width=True):
-            load_preset(lesson["preset"])
-            st.success("Example loaded. Open Circuit lab from the navigation.")
-    with prompt:
-        st.markdown(
-            f"""
-<div class="callout">
-  <strong>Checkpoint</strong>
-  <p>{html.escape(lesson['checkpoint'])}</p>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    previous, next_col = st.columns(2)
-    with previous:
-        if selected > 0 and st.button("←  Previous lesson", use_container_width=True):
-            st.session_state.selected_lesson = selected - 1
-            st.rerun()
-    with next_col:
-        if selected < len(lessons) - 1 and st.button("Next lesson  →", use_container_width=True):
-            st.session_state.selected_lesson = selected + 1
-            st.rerun()
+    if lesson["id"] in st.session_state.completed_lessons:
+        if final_lesson:
+            st.success("You've completed the whole course. From an arrow on a sphere to a trained circuit — nicely done.")
+        else:
+            st.success("This lesson is complete. You can revisit any step or continue when ready.")
 
 
 def render_circuit_lab(show_header: bool = True) -> None:
@@ -622,50 +900,18 @@ def render_circuit_lab(show_header: bool = True) -> None:
     with qubit_col:
         qubits = st.selectbox("Number of qubits", [1, 2, 3, 4], index=st.session_state.num_qubits - 1)
         if qubits != st.session_state.num_qubits:
-            st.session_state.num_qubits = qubits
-            st.session_state.gates = [
-                gate for gate in st.session_state.gates
-                if gate["target"] < qubits and (gate.get("control") is None or gate["control"] < qubits)
-            ]
-            sync_workspace_to_circuit()
-            st.rerun()
+            set_qubit_count(qubits)
     with noise_col:
         st.toggle("Include device noise", key="noisy", help="Adds a simple depolarizing-noise model to sampled probabilities.")
 
     st.subheader("1. Build")
-    gate_col, target_col, parameter_col, add_col = st.columns([1.2, 1, 1.2, 0.9])
-    with gate_col:
-        gate_name = st.selectbox("Gate", ["H", "X", "Y", "Z", "S", "T", "RX", "RY", "RZ", "CNOT"])
-    with target_col:
-        target = st.selectbox("Target", list(range(st.session_state.num_qubits)), format_func=lambda q: f"q{q}")
-    control = None
-    angle = None
-    with parameter_col:
-        if gate_name == "CNOT":
-            valid_controls = [q for q in range(st.session_state.num_qubits) if q != target]
-            if valid_controls:
-                control = st.selectbox("Control", valid_controls, format_func=lambda q: f"q{q}")
-            else:
-                st.selectbox("Control", ["Add another qubit"], disabled=True)
-        elif gate_name in {"RX", "RY", "RZ"}:
-            angle_pi = st.slider("Angle (× pi)", -2.0, 2.0, 0.5, 0.05)
-            angle = angle_pi * math.pi
-        else:
-            st.selectbox("Parameter", ["None"], disabled=True)
-    with add_col:
-        st.markdown("<div style='height:1.75rem'></div>", unsafe_allow_html=True)
-        can_add = gate_name != "CNOT" or control is not None
-        add_clicked = st.button("＋  Add gate", type="primary", use_container_width=True, disabled=not can_add)
-
-    if add_clicked:
-        operation = {"gate": gate_name, "target": target, "control": control}
-        if angle is not None:
-            operation["angle"] = angle
+    operation = gate_controls("lab")
+    if operation:
         st.session_state.gates.append(operation)
         sync_workspace_to_circuit()
         st.rerun()
 
-    sequence = " -> ".join(g["gate"] for g in st.session_state.gates) or "No gates yet"
+    sequence = " → ".join(gate_label(g) for g in st.session_state.gates) or "No gates yet"
     st.caption(f"Current sequence: {sequence}")
     undo_col, clear_col, _spacer = st.columns([1, 1, 3])
     with undo_col:
@@ -681,7 +927,6 @@ def render_circuit_lab(show_header: bool = True) -> None:
 
     engine = build_engine()
     probabilities = engine.get_probabilities(noisy=st.session_state.noisy)
-    angles = engine.run_simulation()
 
     st.subheader("2. Observe")
     st.markdown(
@@ -698,9 +943,7 @@ def render_circuit_lab(show_header: bool = True) -> None:
     circuit_col, probability_col = st.columns([1.2, 1], gap="large")
     with circuit_col:
         st.markdown("**Circuit diagram**")
-        figure = engine.get_circuit_figure()
-        st.pyplot(figure, clear_figure=True, use_container_width=True)
-        plt.close(figure)
+        render_circuit(engine)
     with probability_col:
         st.markdown("**Measurement probabilities**")
         render_probabilities(probabilities)
@@ -712,15 +955,8 @@ def render_circuit_lab(show_header: bool = True) -> None:
         unsafe_allow_html=True,
     )
 
-    with st.expander("Inspect single-qubit state readouts"):
-        cols = st.columns(st.session_state.num_qubits)
-        for qubit, data in angles.items():
-            with cols[qubit]:
-                radius = data["purity"]
-                label = "pure" if radius > 0.98 else "mixed / entangled"
-                st.metric(f"q{qubit}", label)
-                st.caption(f"x {data['x']:.3f} · y {data['y']:.3f} · z {data['z']:.3f}")
-                st.caption(f"Bloch radius {radius:.3f}")
+    st.markdown("**Each qubit's arrow** — a shrunken arrow means the qubit is entangled or noisy")
+    render_bloch_row(engine)
 
     with st.expander("View the exact statevector"):
         state = engine.get_statevector().data
@@ -736,8 +972,7 @@ def render_circuit_lab(show_header: bool = True) -> None:
         st.code(engine.get_qiskit_code(), language="python")
         if st.button("Open this circuit in the code workspace  →", type="primary"):
             sync_workspace_to_circuit()
-            st.session_state.playground_view = "Qiskit code"
-            st.rerun()
+            navigate("Playground", "Qiskit code")
 
 
 def statevector_latex(state: object, width: int) -> str:
@@ -761,22 +996,6 @@ def statevector_latex(state: object, width: int) -> str:
         else:
             terms.append(rf"({real:.4g}{imaginary:+.4g}i){ket}")
     return r"|\psi\rangle = " + r" + ".join(terms)
-
-
-def render_probabilities(probabilities: dict[str, float]) -> None:
-    rows = []
-    for state, probability in probabilities.items():
-        pct = max(0.0, min(100.0, probability * 100.0))
-        rows.append(
-            f"""
-<div class="prob-row">
-  <div class="prob-label">|{html.escape(state)}⟩</div>
-  <div class="prob-track"><div class="prob-fill" style="width:{pct:.3f}%"></div></div>
-  <div class="prob-value">{probability:.1%}</div>
-</div>
-            """
-        )
-    st.markdown("".join(rows), unsafe_allow_html=True)
 
 
 def render_code_lab(show_header: bool = True) -> None:
@@ -828,7 +1047,7 @@ def render_code_lab(show_header: bool = True) -> None:
             else:
                 st.caption("The code ran but printed no text. Add a print statement or create a Matplotlib figure.")
             for figure in result["figures"]:
-                st.pyplot(figure, use_container_width=True)
+                st.image(figure, use_container_width=True)
         else:
             st.error("Execution failed. The coach has the traceback context below.")
             st.code(result.get("error") or result.get("stderr") or "Unknown error", language="text")
@@ -917,84 +1136,15 @@ def render_code_coach() -> None:
         st.rerun()
 
 
-def render_practice() -> None:
-    page_header(
-        "Deliberate practice",
-        "Practice",
-        "Each exercise has one observable target. Build it in the Circuit lab, then return here to check the current circuit.",
-    )
-
-    selected = st.selectbox(
-        "Exercise",
-        range(len(PRACTICE)),
-        index=int(st.session_state.selected_practice),
-        format_func=lambda index: f"{index + 1}. {PRACTICE[index]['title']}",
-    )
-    st.session_state.selected_practice = selected
-    exercise = PRACTICE[selected]
-
-    st.markdown(
-        f"""
-<div class="lesson-meta">
-  <span class="meta-pill">{html.escape(exercise['level'])}</span>
-  <span class="meta-pill">{exercise['qubits']} qubit{'s' if exercise['qubits'] != 1 else ''}</span>
-</div>
-<div class="content-card">
-  <strong>Goal</strong>
-  <p>{html.escape(exercise['goal'])}</p>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    with st.expander("Show one hint"):
-        st.write(exercise["hint"])
-
-    start_col, check_col = st.columns(2)
-    with start_col:
-        if st.button("Start with an empty circuit", use_container_width=True):
-            st.session_state.num_qubits = exercise["qubits"]
-            st.session_state.gates = []
-            sync_workspace_to_circuit()
-            st.success("Workspace prepared. Open Circuit lab to build your answer.")
-    with check_col:
-        check_clicked = st.button("Check current circuit", type="primary", use_container_width=True)
-
-    if check_clicked:
-        if st.session_state.num_qubits != exercise["qubits"]:
-            st.error(f"This exercise requires exactly {exercise['qubits']} qubit(s).")
-            return
-        engine = build_engine()
-        actual = engine.get_probabilities()
-        target = exercise["target"]
-        states = set(actual) | set(target)
-        max_error = max(abs(actual.get(state, 0.0) - target.get(state, 0.0)) for state in states)
-        names = [gate["gate"] for gate in st.session_state.gates]
-        required_ok = all(name in names for name in exercise.get("required", []))
-        forbidden_ok = all(name not in names for name in exercise.get("forbidden", []))
-
-        if max_error < 0.025 and required_ok and forbidden_ok:
-            st.success("Correct. The circuit reaches the target distribution and satisfies the gate constraints.")
-            lessons = course_lessons()
-            st.markdown(f"**Explain it:** {lessons[min(selected + 1, len(lessons) - 1)]['checkpoint']}")
-        else:
-            st.warning("Not there yet. Compare the target and current probabilities, then change one gate.")
-            comparison = []
-            for state in sorted(states):
-                comparison.append(f"|{state}>  target {target.get(state, 0.0):.1%}  ·  current {actual.get(state, 0.0):.1%}")
-            st.code("\n".join(comparison), language="text")
-            if not required_ok:
-                st.caption("The solution has not used every required gate yet.")
-            if not forbidden_ok:
-                st.caption("The circuit uses a gate that this exercise excludes.")
-
-
 def render_playground() -> None:
     page_header(
         "Explore freely",
         "Playground",
         "Use the same circuit in two views: build visually, then inspect or change the matching Qiskit program. Nothing here interrupts your lesson progress.",
     )
+    pending_view = st.session_state.pop("pending_playground_view", None)
+    if pending_view:
+        st.session_state.playground_view = pending_view
     mode = st.radio(
         "Workspace",
         ["Circuit builder", "Qiskit code"],
@@ -1117,7 +1267,7 @@ def render_content_studio() -> None:
         new_lessons = deepcopy(lessons)
         new_lessons[lesson_index] = updated
         st.session_state.site_lessons = new_lessons
-        st.success("Lesson saved. Open Course to preview it.")
+        st.success("Lesson saved. Open the learning path to preview it.")
 
     st.subheader("Import or export")
     export_payload = json.dumps(
@@ -1158,20 +1308,112 @@ def render_content_studio() -> None:
             st.error(f"Could not import that file: {exc}")
 
 
+def render_my_notebook() -> None:
+    page_header(
+        "Everything you've written",
+        "My notebook",
+        "Your predictions, explanations, margin notes and code from every lesson, in one place.",
+    )
+    data = notebook_store.snapshot(st.session_state)
+    lessons = course_lessons()
+
+    storage, backup = st.columns([1.3, 1], gap="large")
+    with storage:
+        if st.session_state.get("nb_storage_ok"):
+            st.markdown("💾 **Saved automatically in this browser.** Come back any time on this device and pick up where you left off.")
+        elif st.session_state.get("nb_hydrated"):
+            st.markdown("⚠ **This browser won't let the page save locally** (common inside embedded pages). Download your notebook to keep it.")
+        else:
+            st.markdown("Connecting to this browser's storage…")
+        st.caption("Nothing is sent to a server. Clearing your browser data erases the saved copy, so download a backup now and then.")
+    with backup:
+        st.download_button(
+            "⬇  Download my notebook (.json)",
+            data=notebook_store.dumps(data),
+            file_name="quantum-lab-notebook.json",
+            mime="application/json",
+            type="primary",
+            use_container_width=True,
+        )
+        st.download_button(
+            "⬇  Download as a write-up (.md)",
+            data=notebook_store.to_markdown(data, lessons),
+            file_name="quantum-lab-notebook.md",
+            mime="text/markdown",
+            use_container_width=True,
+        )
+
+    with st.expander("Restore a notebook or start fresh"):
+        uploaded = st.file_uploader("Load a notebook file", type=["json"], key="nb_upload")
+        if uploaded is not None and st.button("Restore this notebook", key="nb_restore"):
+            restored = notebook_store.loads(uploaded.getvalue().decode("utf-8", errors="replace"))
+            notebook_store.apply(st.session_state, notebook_store.merge(notebook_store.snapshot(st.session_state), restored))
+            st.session_state.nb_toast = "Notebook restored."
+            st.rerun()
+        st.divider()
+        confirm = st.checkbox("I want to erase everything in this notebook", key="nb_confirm_reset")
+        if st.button("Start a fresh notebook", disabled=not confirm, key="nb_reset"):
+            notebook_store.apply(st.session_state, notebook_store.empty())
+            st.session_state.nb_toast = "Fresh notebook started."
+            st.rerun()
+
+    entries = [(index, lesson) for index, lesson in enumerate(lessons) if notebook_store.has_entry(data, lesson["id"])]
+    if not entries:
+        show_html('<p class="intro-note">Nothing written yet. Start lesson 1 — your predictions, notes and code will collect here.</p>')
+        if st.button("Start lesson 1  →", type="primary", key="nb_start"):
+            open_lesson(0)
+        return
+
+    for index, lesson in entries:
+        lesson_id = lesson["id"]
+        with st.container(key=f"nb-card-entry-{lesson_id}"):
+            done = lesson_id in data["completed_lessons"]
+            show_html(
+                f'<div class="entry-head"><span>Lesson {index + 1}</span><strong>{html.escape(lesson["title"])}</strong>'
+                f'{"<em>✓ written up</em>" if done else "<em>in progress</em>"}</div>'
+            )
+            quiz = lesson.get("quiz")
+            answer = data["quiz_answers"].get(lesson_id)
+            if quiz and answer is not None and answer < len(quiz["options"]):
+                verdict = "✓" if answer == quiz["answer"] else "✗"
+                show_html(
+                    f'<p class="entry-line"><span>I predicted</span> {verdict} {html.escape(quiz["options"][answer])}</p>'
+                )
+            if lesson_id in data["reflections"]:
+                show_html(f'<p class="entry-line"><span>I explained</span></p><p class="entry-hand">{html.escape(data["reflections"][lesson_id])}</p>')
+            if lesson_id in data["notes"]:
+                show_html(f'<div class="entry-note">{html.escape(data["notes"][lesson_id])}</div>')
+            if lesson_id in data["code_attempts"]:
+                label = "My code — solved ✓" if lesson_id in data["tasks_passed"] else "My code (not solved yet)"
+                show_html(f'<p class="entry-line"><span>{label}</span></p>')
+                st.code(data["code_attempts"][lesson_id], language="python")
+            if st.button("Open this lesson", key=f"nb_open_{lesson_id}"):
+                open_lesson(index, 0 if done else min(int(data["lesson_max_stage"].get(lesson_id, 0)), 5))
+
+
 def footer() -> None:
     st.divider()
-    st.caption("One learning loop: understand, predict, experiment, explain. Compatible with local Streamlit and Hugging Face Spaces.")
+    st.caption("Intuition → prediction → experiment → math → Qiskit → explanation. Runs locally or on Hugging Face Spaces.")
 
 
 inject_education_theme()
 init_state()
+if st.session_state.pop("nb_restored", False):
+    st.toast("Welcome back — your notebook was restored.", icon="📓")
+if "nb_toast" in st.session_state:
+    st.toast(st.session_state.pop("nb_toast"), icon="📓")
 active_page = sidebar()
 
-if active_page == "Learning path":
+if active_page == "Course map":
+    render_course_map()
+elif active_page == "Learning path":
     render_learning_path()
+elif active_page == "My notebook":
+    render_my_notebook()
 elif active_page == "Playground":
     render_playground()
 else:
     render_content_studio()
 
 footer()
+notebook_store.sync_browser_storage()
