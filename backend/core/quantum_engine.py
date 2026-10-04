@@ -7,6 +7,8 @@ import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector, partial_trace
 
+from backend.core.qiskit_thread import on_qiskit_thread
+
 
 class QuantumEngine:
     def __init__(self, num_qubits=2):
@@ -46,6 +48,7 @@ class QuantumEngine:
     def clear(self):
         self.gates = []
         
+    @on_qiskit_thread
     def build_circuit(self):
         qc = QuantumCircuit(self.num_qubits)
         for g in self.gates:
@@ -87,9 +90,11 @@ class QuantumEngine:
                 qc.swap(other, target)
         return qc
 
+    @on_qiskit_thread
     def get_statevector(self):
         return Statevector.from_instruction(self.build_circuit())
 
+    @on_qiskit_thread
     def get_probabilities(self, noisy: bool = False):
         qc = self.build_circuit()
         if not noisy:
@@ -164,6 +169,7 @@ class QuantumEngine:
         ])
         return "\n".join(lines)
         
+    @on_qiskit_thread
     def run_simulation(self):
         sv = self.get_statevector()
         
@@ -200,6 +206,7 @@ class QuantumEngine:
             }
         return angles
         
+    @on_qiskit_thread
     def get_circuit_figure(self):
         qc = self.build_circuit()
         education_style = {
