@@ -270,7 +270,9 @@ def _render(config: dict, height: int) -> None:
     payload = json.dumps(config).replace("<", "\\u003c")
     html = _TEMPLATE.replace("__CONFIG__", payload)
     if hasattr(st, "iframe"):  # Streamlit >= 1.5x; components.v1.html is deprecated
-        st.iframe(html, height=height)
+        # "content" sizes the frame to what it renders, so on phones the panel
+        # that wraps below the sphere stays visible.
+        st.iframe(html, height="content")
     else:
         components.html(html, height=height)
 
