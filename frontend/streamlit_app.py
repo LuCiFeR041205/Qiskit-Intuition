@@ -25,6 +25,7 @@ load_dotenv()
 
 import streamlit as st
 
+from backend.core import feedback
 from backend.core.exercise_checker import check_code_task
 from backend.core.explanation_review import review_explanation
 from backend.core.notebook_engine import execute_notebook_code
@@ -1492,8 +1493,45 @@ def render_my_notebook() -> None:
                 open_lesson(index, 0 if done else min(int(data["lesson_max_stage"].get(lesson_id, 0)), 5))
 
 
-def footer() -> None:
+def feedback_context(active_page: str) -> dict[str, str]:
+    context = {"page": active_page}
+    if active_page == "Learning path":
+        lessons = course_lessons()
+        index = min(int(st.session_state.selected_lesson), len(lessons) - 1)
+        context["lesson"] = f"{index + 1}. {lessons[index]['title']}"
+        context["stage"] = LEARNING_STAGES[min(int(st.session_state.learning_stage), 5)][0]
+    context["reading mode"] = "easy-read" if st.session_state.reading_mode == "plain" else "handwriting"
+    return context
+
+
+def render_feedback(active_page: str) -> None:
+    """A feedback form on every page, filed as a GitHub issue with the page and lesson attached."""
+    with st.popover("✎ Send feedback to the team"):
+        st.markdown("**What worked, what confused you, what broke?**")
+        st.caption("Feedback is posted publicly as a GitHub issue, with the page and lesson you're on. Please don't include personal details.")
+        outcome = st.container()  # above the form, so phones see it without scrolling
+        with st.form("feedback_form", clear_on_submit=True, border=False):
+            kind = st.radio("Kind", feedback.KINDS, horizontal=True, label_visibility="collapsed")
+            message = st.text_area("Your feedback", max_chars=feedback.MAX_LENGTH, height=140, placeholder="e.g. In the Predict step I didn't understand why…")
+            sent = st.form_submit_button("Send feedback", use_container_width=True)
+    if not sent:
+        return
+    with outcome:
+        error = feedback.validate(message)
+        if error:
+            st.warning(error)
+            return
+        result = feedback.submit(feedback.build_report(kind, message, feedback_context(active_page)))
+        if result["status"] == "filed":
+            st.success(f"Thank you — [your feedback]({result['url']}) is with the team.")
+        else:
+            st.info("One more step: open this pre-filled issue and press **Submit** (needs a free GitHub account).")
+            st.link_button("Open the feedback issue", result["url"], use_container_width=True)
+
+
+def footer(active_page: str) -> None:
     st.divider()
+    render_feedback(active_page)
     st.caption("Intuition → prediction → experiment → math → Qiskit → explanation. Runs locally or on Hugging Face Spaces.")
 
 
@@ -1517,5 +1555,5 @@ elif active_page == "Playground":
 else:
     render_content_studio()
 
-footer()
+footer(active_page)
 notebook_store.sync_browser_storage()
