@@ -26,6 +26,7 @@ load_dotenv()
 import streamlit as st
 
 from backend.core.exercise_checker import check_code_task
+from backend.core.explanation_review import review_explanation
 from backend.core.notebook_engine import execute_notebook_code
 from backend.core.quantum_engine import QuantumEngine
 from backend.core.teaching_assistant import (
@@ -864,13 +865,17 @@ def render_reflect_stage(lesson: dict, lesson_index: int, lesson_count: int) -> 
         if not reflection.strip():
             st.warning("Write a short explanation before asking for feedback.")
         else:
-            prompt = (
-                f"Evaluate this learner explanation for the lesson '{lesson['title']}': {reflection}. "
-                "Identify what is correct, correct one misconception if present, and give one concise verification step."
-            )
-            with st.spinner("Checking the explanation against the circuit…"):
-                answer = answer_tutor(prompt, current_tutor_context(), use_model=True)
-            st.session_state.explanation_feedback = {**st.session_state.explanation_feedback, feedback_key: answer["reply"]}
+            feedback_text = review_explanation(reflection, lesson)["markdown"]
+            if os.getenv("GEMINI_API_KEY"):
+                prompt = (
+                    f"Evaluate this learner explanation for the lesson '{lesson['title']}': {reflection}. "
+                    "Identify what is correct, correct one misconception if present, and give one concise verification step."
+                )
+                with st.spinner("Asking the coach for more detail…"):
+                    answer = answer_tutor(prompt, current_tutor_context(), use_model=True)
+                if answer.get("provider") != "local":
+                    feedback_text += "\n\n**Coach's notes:**\n\n" + answer["reply"]
+            st.session_state.explanation_feedback = {**st.session_state.explanation_feedback, feedback_key: feedback_text}
 
     if complete_lesson:
         if not reflection.strip():
