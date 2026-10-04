@@ -1,0 +1,6 @@
+# Some modules must configure the environment (dotenv, MPLCONFIGDIR,
+# matplotlib backend) before importing heavy libraries.
+[lint.per-file-ignores]
+"backend/main.py" = ["E402"]
+"backend/core/*.py" = ["E402"]
+"frontend/streamlit_app.py" = ["E402"]

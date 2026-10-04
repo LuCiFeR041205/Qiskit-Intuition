@@ -5,7 +5,6 @@ fidelity via backend.core.quest_engine. This test exercises that same
 pipeline in-process so regressions in the engine or quest targets surface
 without a browser.
 """
-import numpy as np
 import pytest
 
 from backend.core.quantum_engine import QuantumEngine

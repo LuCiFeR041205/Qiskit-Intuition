@@ -6,7 +6,6 @@ reachable target and that the engine + fidelity helper agree.
 """
 import numpy as np
 import pytest
-from qiskit.quantum_info import Statevector
 
 from backend.core.quantum_engine import QuantumEngine
 from backend.core.quest_engine import calculate_fidelity, get_quests
