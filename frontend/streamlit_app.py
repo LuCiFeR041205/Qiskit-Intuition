@@ -828,7 +828,7 @@ def render_code_lab(show_header: bool = True) -> None:
             else:
                 st.caption("The code ran but printed no text. Add a print statement or create a Matplotlib figure.")
             for figure in result["figures"]:
-                st.pyplot(figure, use_container_width=True)
+                st.image(figure, use_container_width=True)
         else:
             st.error("Execution failed. The coach has the traceback context below.")
             st.code(result.get("error") or result.get("stderr") or "Unknown error", language="text")
