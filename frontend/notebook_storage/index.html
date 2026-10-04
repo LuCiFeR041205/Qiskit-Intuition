@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Notebook storage</title></head>
+<body>
+<script>
+// Saves the learner's notebook in this browser's localStorage.
+// Speaks Streamlit's component protocol directly, so no build step is needed.
+//   action "load"  -> replies once with the stored JSON ("" if none,
+//                     "__unavailable__" if the browser blocks storage)
+//   action "save"  -> stores args.data, replies nothing (no rerun)
+//   action "clear" -> removes the stored notebook
+const KEY = "qiskit-intuition-notebook-v1";
+let replied = false;
+
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, extra || {}), "*");
+}
+
+window.addEventListener("message", function (event) {
+  const message = event.data;
+  if (!message || message.type !== "streamlit:render") return;
+  const args = message.args || {};
+  if (args.action === "load" && !replied) {
+    replied = true;
+    let value;
+    try {
+      const stored = window.localStorage.getItem(KEY);
+      value = stored === null ? "" : stored;
+    } catch (error) {
+      value = "__unavailable__";
+    }
+    post("streamlit:setComponentValue", { value: value, dataType: "json" });
+  } else if (args.action === "save" && typeof args.data === "string") {
+    try { window.localStorage.setItem(KEY, args.data); } catch (error) { /* storage blocked or full */ }
+  } else if (args.action === "clear") {
+    try { window.localStorage.removeItem(KEY); } catch (error) { /* ignore */ }
+  }
+});
+
+post("streamlit:componentReady", { apiVersion: 1 });
+post("streamlit:setFrameHeight", { height: 0 });
+</script>
+</body>
+</html>
