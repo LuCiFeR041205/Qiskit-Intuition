@@ -64,3 +64,24 @@ def test_escape_attempts_are_blocked(code):
     result = execute_notebook_code(code)
     assert result["success"] is False
     assert "Security Restriction" in result["error"]
+
+
+def test_memory_hungry_program_is_stopped_with_a_clear_message():
+    result = execute_notebook_code("big = np.ones(600_000_000)\nprint(big.sum())\n")
+    assert result["success"] is False
+    assert "Memory limit" in result["error"]
+
+
+def test_normal_qiskit_program_fits_within_the_memory_cap():
+    code = (
+        "from qiskit import QuantumCircuit, transpile\n"
+        "from qiskit_aer import AerSimulator\n"
+        "qc = QuantumCircuit(12)\n"
+        "qc.h(range(12))\n"
+        "qc.measure_all()\n"
+        "sim = AerSimulator()\n"
+        "print(len(sim.run(transpile(qc, sim), shots=200).result().get_counts()) > 1)\n"
+    )
+    result = execute_notebook_code(code)
+    assert result["success"] is True, result["error"]
+    assert "True" in result["stdout"]

@@ -36,6 +36,16 @@ from qiskit.quantum_info import Statevector
 DEFAULT_TIMEOUT_SECONDS = 15
 MAX_OUTPUT_CHARS = 20_000
 MAX_FIGURES = 8
+# Extra memory a learner program may allocate beyond the interpreter's own
+# footprint. Stops one heavy program from exhausting a small shared host.
+MEMORY_HEADROOM_BYTES = 1024 ** 3
+# Keep numerical libraries single-threaded so concurrent learners share CPUs fairly.
+_SINGLE_THREAD_ENV = {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "RAYON_NUM_THREADS": "1",
+}
 
 # Only these top-level packages may be imported by learner code.
 ALLOWED_MODULES = {
@@ -174,6 +184,12 @@ def _run(code_string: str) -> dict:
     with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
         try:
             exec(compile(code_string, "<sandbox>", "exec"), namespace)
+        except MemoryError:
+            success = False
+            error_message = (
+                f"Memory limit: the program tried to use more than about {MEMORY_HEADROOM_BYTES // 1024 ** 3} GB. "
+                "Use fewer qubits or shots, or smaller arrays. (Each extra qubit doubles a statevector's size.)"
+            )
         except Exception:
             success = False
             error_message = _truncate(traceback.format_exc())
@@ -218,13 +234,13 @@ def execute_notebook_code(code_string, timeout: float = DEFAULT_TIMEOUT_SECONDS)
     if security_violation:
         return _failure(security_violation)
 
-    env = dict(os.environ)
+    env = {**os.environ, **_SINGLE_THREAD_ENV}
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [_PROJECT_ROOT, env.get("PYTHONPATH")]))
     with tempfile.TemporaryDirectory(prefix="qi-sandbox-") as workdir:
         result_path = os.path.join(workdir, "result.pickle")
         try:
             completed = subprocess.run(
-                [sys.executable, "-m", "backend.core.notebook_engine", result_path],
+                [sys.executable, "-m", "backend.core.notebook_engine", result_path, str(timeout)],
                 input=code_string,
                 text=True,
                 capture_output=True,
@@ -245,9 +261,35 @@ def execute_notebook_code(code_string, timeout: float = DEFAULT_TIMEOUT_SECONDS)
             return _failure("The sandbox process exited unexpectedly (possibly out of memory).\n" + detail)
 
 
-def _worker_main(result_path: str) -> None:
+def _current_address_space() -> int | None:
+    try:
+        with open("/proc/self/status", encoding="ascii") as status:
+            for line in status:
+                if line.startswith("VmSize:"):
+                    return int(line.split()[1]) * 1024
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _limit_memory(timeout: float) -> None:
+    """Cap this process at its current size plus MEMORY_HEADROOM_BYTES (POSIX only)."""
+    try:
+        import resource
+    except ImportError:  # Windows: rely on the timeout alone
+        return
+    current = _current_address_space()
+    if current is not None:
+        limit = current + MEMORY_HEADROOM_BYTES
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    cpu = int(timeout) + 2
+    resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
+
+
+def _worker_main(result_path: str, timeout: float = DEFAULT_TIMEOUT_SECONDS) -> None:
     code_string = sys.stdin.read()
     try:
+        _limit_memory(timeout)
         result = _run(code_string)
     except Exception:
         result = _failure(traceback.format_exc())
@@ -256,4 +298,4 @@ def _worker_main(result_path: str) -> None:
 
 
 if __name__ == "__main__":
-    _worker_main(sys.argv[1])
+    _worker_main(sys.argv[1], float(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_TIMEOUT_SECONDS)
