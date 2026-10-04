@@ -13,7 +13,7 @@ Lessons live in `frontend/learning_content.py` as plain dictionaries. Each lesso
 | 3. Experiment | `preset` (a key of `PRESETS`), `try_this`, optional `noise_toggle` |
 | 4. Formalize | `explanation`, `latex`, `misconception` |
 | 5. Code it | `qiskit` (`intro`, runnable `code`, line-by-line `notes`) and `code_task` |
-| 6. Reflect | `checkpoint`, `practice` (index into `PRACTICE`) |
+| 6. Reflect | `checkpoint`, `practice` (index into `PRACTICE`), and a rubric in `RUBRICS`: `key_ideas` (idea, lower-case cue words, hint) and `watch_for` (cues, note) for instant feedback |
 
 Guidelines:
 
@@ -21,6 +21,8 @@ Guidelines:
 - **Wrong answers teach.** Every quiz option needs an explanation of why it is tempting or wrong.
 - **One new Qiskit idea per lesson.** The worked example should introduce a single API and run in the sandbox.
 - **Auto-checked exercises.** A `code_task` has a `starter`, a reference `solution` that leaves its circuit in `qc`, an optional `match` (`"state"` compares up to global phase, `"probs"` compares the measurement distribution), and optional `required_ops` (e.g. `["h", "cx"]`).
+
+You can also edit all of this in the app's **Content Studio** (sidebar → Course author), which validates lessons before saving and exports `site_content.json`.
 
 Widgets are implemented in `frontend/intuition.py` (`bloch_dial`, `gate_play`, `shots`, `interference`, `basis_measure`, `bit_order`, `entangle`, `teleport`, `deutsch`, `grover`, `noise`, `routing`, `variational`). They are Python plus inline SVG; the draggable 3D sphere in `frontend/bloch3d.py` is plain HTML/JS. No front-end build step is needed. Lesson numbers come from their position in `LESSONS`, so you can insert a lesson anywhere.
 
