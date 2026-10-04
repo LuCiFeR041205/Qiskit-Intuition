@@ -35,9 +35,12 @@ The project includes a Streamlit app for Hugging Face Spaces and a separate Next
 - **Course map:** units, progress, a resume button, and a glossary that gives each term's picture and precise definition.
 - **Your notebook, kept:** progress, predictions, margin notes, explanations and exercise code save automatically in the browser (localStorage — nothing is sent to a server) and restore on the next visit. The **My notebook** page collects everything you've written and downloads it as JSON (to restore later) or as a Markdown write-up.
 - **Playground:** an open workspace that switches between the visual circuit builder and the sandboxed Qiskit code runner without affecting course progress.
+- **Instant feedback on explanations:** in the Reflect step, "Check my reasoning" compares your explanation with the lesson's key ideas and common misconceptions, offline and instantly. With `GEMINI_API_KEY` set, a model adds notes below.
+- **Easy-read text:** a sidebar switch swaps the handwriting for Atkinson Hyperlegible, a font designed for low-vision readers, and straightens tilted notes. Colours meet WCAG AA contrast.
+- **Phones and tablets:** the sidebar tucks away on small screens, page tabs take its place, and the 3D sphere works with touch.
 - **Code coach:** context-aware help receives the current lesson, circuit, code, and latest traceback.
 - **Transfer challenges:** optional circuit targets open in the playground for extra practice.
-- **Content Studio:** author controls stay outside the learner navigation and export/import one publishable content file.
+- **Content Studio:** edit every part of a lesson — intuition, widget, quiz, worked circuit, math, Qiskit example, exercise and reflection rubric — in plain text. Saving validates everything, runs the example and checks the exercise's solution. Author controls stay outside the learner navigation and export/import one publishable content file.
 
 ## Hugging Face Spaces
 
