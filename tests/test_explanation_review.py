@@ -1,5 +1,6 @@
 """Tests for instant, offline feedback on learner explanations."""
 from backend.core.explanation_review import review_explanation
+from frontend.learning_content import LESSONS
 
 LESSON = {
     "key_ideas": [
@@ -33,3 +34,23 @@ def test_complete_answer_gets_a_follow_up_question():
     assert not review["missing"]
     assert "covers the essentials" in review["markdown"]
 
+
+def test_every_lesson_rubric_is_well_formed():
+    for lesson in LESSONS:
+        assert len(lesson["key_ideas"]) >= 2, lesson["id"]
+        for idea in lesson["key_ideas"]:
+            assert idea["idea"] and idea["hint"] and idea["terms"], (lesson["id"], idea)
+            assert all(term == term.lower() for term in idea["terms"]), (lesson["id"], idea["terms"])
+        for item in lesson["watch_for"]:
+            assert item["note"] and all(term == term.lower() for term in item["terms"])
+
+
+def test_a_model_answer_covers_the_rubric():
+    entanglement = next(lesson for lesson in LESSONS if lesson["id"] == "entanglement")
+    answer = (
+        "The pair has one pure joint state, but each qubit alone is a 50/50 coin: its arrow shrinks to nothing "
+        "because the state can't be written as a product of two separate states."
+    )
+    review = review_explanation(answer, entanglement)
+    assert not review["missing"], [i["idea"] for i in review["missing"]]
+    assert review_explanation("This lets you send a message faster than light.", entanglement)["flags"]

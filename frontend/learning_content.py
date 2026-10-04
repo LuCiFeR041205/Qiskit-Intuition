@@ -1438,3 +1438,194 @@ GLOSSARY = [
     ("Noise", "Imperfections that shrink the arrow toward randomness.", "Non-unitary channels such as depolarizing or amplitude damping."),
     ("Parameter", "A knob — a gate angle left as a variable.", "A symbolic value bound to a number before execution."),
 ]
+
+
+def _idea(idea: str, terms: list[str], hint: str) -> dict:
+    return {"idea": idea, "terms": terms, "hint": hint}
+
+
+def _watch(terms: list[str], note: str) -> dict:
+    return {"terms": terms, "note": note}
+
+
+# What a good Reflect-stage explanation mentions, per lesson. Used for instant,
+# offline feedback (backend/core/explanation_review.py). Terms are lower-case cues.
+RUBRICS = {
+    "qubit": {
+        "key_ideas": [
+            _idea("The state is the arrow, not the 0/1 you read", ["arrow", "state", "bloch", "direction", "amplitude"],
+                  "say what the arrow (the state) is, separately from the single bit a measurement returns."),
+            _idea("Repeat the experiment many times", ["shot", "many", "repeat", "again", "frequen", "fraction", "statistic", "sample"],
+                  "one measurement gives one bit, so you'd prepare and measure many copies."),
+            _idea("Odds come from how close the arrow is to a pole", ["closer", "north", "pole", "probabilit", "likely", "odds", "angle"],
+                  "link the chance of 0 to how near the arrow is to the north pole."),
+        ],
+        "watch_for": [
+            _watch(["secretly", "already 0 or 1", "hidden value", "really 0 or 1"],
+                   "the qubit isn't secretly 0 or 1 before you look — the arrow genuinely points in between."),
+        ],
+    },
+    "flip": {
+        "key_ideas": [
+            _idea("X is a half-turn of the arrow", ["rotat", "turn", "half", "180", "π", "pi"], "describe X as a 180° rotation."),
+            _idea("A second turn undoes the first", ["twice", "cancel", "undo", "back", "identity", "inverse", "revers"],
+                  "two half-turns bring the arrow back to where it started."),
+            _idea("X swaps the two amplitudes", ["swap", "amplitude", "matrix", "exchang"], "X exchanges α and β."),
+        ],
+        "watch_for": [],
+    },
+    "measurement": {
+        "key_ideas": [
+            _idea("More shots", ["shot", "repeat", "many", "more"], "talk about what changes as you add shots."),
+            _idea("The fraction settles toward 0.75", ["approach", "converge", "closer", "settle", "0.75", "75"],
+                  "the observed fraction of zeros gets closer and closer to 0.75."),
+            _idea("Small samples wobble", ["noise", "fluctuat", "wobble", "error", "vary", "variation", "sqrt", "√"],
+                  "few shots give noisy fractions; the typical error shrinks like 1/√N."),
+        ],
+        "watch_for": [
+            _watch(["exactly 75", "always 75", "exactly 0.75"], "even with many shots you'll rarely see exactly 75% — just closer and closer."),
+        ],
+    },
+    "superposition": {
+        "key_ideas": [
+            _idea("One H gives equal amplitudes", ["equal", "amplitude", "0.707", "1/√2", "balanced", "half", "equator"],
+                  "after one H both amplitudes are 1/√2, so each outcome is 50%."),
+            _idea("A second H undoes the first", ["undo", "inverse", "cancel", "back", "return", "twice", "interfer"],
+                  "H is its own inverse — the paths recombine to |0⟩."),
+            _idea("The arrow is definite; randomness comes from measuring", ["definite", "determin", "rotat", "direction", "measur"],
+                  "the state after H is a definite direction; only the measurement is random."),
+        ],
+        "watch_for": [
+            _watch(["adds randomness", "makes it random", "random state"], "H doesn't add randomness — it's a deterministic rotation."),
+        ],
+    },
+    "rotations": {
+        "key_ideas": [
+            _idea("P(1) = sin²(θ/2)", ["sin", "cos", "θ/2", "theta/2", "half"], "use the half-angle formula P(1) = sin²(θ/2)."),
+            _idea("Probability isn't linear in the angle", ["not linear", "nonlinear", "non-linear", "curve", "square", "steep", "slow"],
+                  "the odds follow a curve: small angles barely move them."),
+            _idea("Check the two numbers", ["π/2", "pi/2", "equator", "50", "15"],
+                  "RY(π/2) reaches the equator (50%); RY(π/4) gives about 15%."),
+        ],
+        "watch_for": [],
+    },
+    "phase": {
+        "key_ideas": [
+            _idea("Z changes the phase (longitude)", ["phase", "longitude", "around", "spin", "sign", "relative"],
+                  "Z turns the arrow around the vertical axis — it changes the phase."),
+            _idea("The odds stay the same right away", ["magnitude", "same", "unchanged", "doesn't change", "does not change", "stay"],
+                  "magnitudes don't change, so the bars don't move immediately."),
+            _idea("A later gate can reveal it", ["interfer", "later", "next", "hadamard", "h", "recombin", "reveal"],
+                  "a later H turns that phase into a change in the odds."),
+        ],
+        "watch_for": [
+            _watch(["does nothing", "did nothing", "no effect"], "Z isn't doing nothing — it changes the state, just not the current odds."),
+        ],
+    },
+    "interference": {
+        "key_ideas": [
+            _idea("The first H splits into two paths", ["split", "two paths", "superposition", "first h", "both paths"],
+                  "say what the first H does."),
+            _idea("Z flips the sign of one path", ["z", "phase", "sign", "minus", "negative", "shift"], "say what the middle Z does."),
+            _idea("The last H recombines: |0⟩ cancels, |1⟩ adds", ["cancel", "destructive", "constructive", "recombin", "add", "interfer"],
+                  "explain the cancellation on |0⟩ and reinforcement on |1⟩."),
+        ],
+        "watch_for": [
+            _watch(["probabilities cancel", "particles collide", "bump into"], "it's amplitudes (which can be negative) that cancel, not probabilities."),
+        ],
+    },
+    "bases": {
+        "key_ideas": [
+            _idea("A measurement asks about one axis", ["axis", "basis", "question", "direction"], "say which axis each measurement asks about."),
+            _idea("|+⟩ and |−⟩ sit at the ends of the X axis", ["pole", "end", "opposite", "|+", "|-", "plus", "minus", "front", "back", "certain"],
+                  "along X they're opposite poles, so the answer is certain."),
+            _idea("Along Z both are on the equator", ["equator", "50", "same probabilit", "z basis", "along z", "can't tell", "cannot tell"],
+                  "measured along Z, both give 50/50 — the Z question can't separate them."),
+        ],
+        "watch_for": [],
+    },
+    "registers": {
+        "key_ideas": [
+            _idea("Amplitudes double with each qubit", ["2^", "2¹⁰", "1024", "double", "exponential"], "10 qubits have 2¹⁰ = 1024 amplitudes."),
+            _idea("A measurement returns one bit string", ["one", "single", "string", "measur", "collapse"],
+                  "each measurement still gives just one 10-bit result."),
+        ],
+        "watch_for": [],
+    },
+    "entanglement": {
+        "key_ideas": [
+            _idea("The pair has one definite joint state", ["pair", "joint", "together", "whole", "shared", "pure"],
+                  "the two-qubit state is perfectly definite."),
+            _idea("Each qubit alone is a coin flip", ["random", "50/50", "coin", "mixed", "shrink", "no direction", "individual", "alone"],
+                  "on its own, each qubit has no arrow — its Bloch vector has length 0."),
+            _idea("The state can't be split into two separate states", ["product", "factor", "separat", "independent", "correlat"],
+                  "the information lives in the correlations, not in either qubit."),
+        ],
+        "watch_for": [
+            _watch(["faster than light", "send a message", "signal"], "entanglement can't send messages — each side alone sees random results."),
+        ],
+    },
+    "teleportation": {
+        "key_ideas": [
+            _idea("Bob needs Alice's two classical bits", ["classical", "bits", "phone", "message", "communicat", "wait"],
+                  "the fix depends on bits sent by ordinary means."),
+            _idea("Without them his qubit is random", ["random", "50/50", "noise", "coin", "mixed", "nothing"],
+                  "averaged over Alice's results, Bob's qubit is a coin flip."),
+            _idea("So nothing outruns light", ["light", "speed", "instant", "causal"], "explain why no information arrives faster than light."),
+        ],
+        "watch_for": [],
+    },
+    "deutsch": {
+        "key_ideas": [
+            _idea("The output qubit starts in |−⟩", ["|-", "|−", "minus", "output qubit", "target"], "say how the output qubit is prepared."),
+            _idea("Flipping |−⟩ just multiplies by −1", ["(-1)", "-1", "sign", "phase", "kick"], "a flip of |−⟩ only changes its sign."),
+            _idea("That sign lands on the input", ["input", "control", "q0", "kickback", "kick back", "moves"],
+                  "the −1 belongs to the input's branch, so the answer becomes a phase on q0."),
+        ],
+        "watch_for": [
+            _watch(["evaluates both", "both answers", "reads both"], "you never learn f(0) or f(1) — only whether they're equal."),
+        ],
+    },
+    "grover": {
+        "key_ideas": [
+            _idea("The oracle marks the answer with a sign", ["oracle", "mark", "sign", "phase", "flip"], "say what the oracle does."),
+            _idea("The diffuser reflects about the average", ["diffus", "mean", "average", "reflect", "amplif"], "say what the diffuser does."),
+            _idea("Interference grows the answer and shrinks the rest", ["interfer", "grow", "shrink", "cancel", "constructive"],
+                  "connect the phase to the change in odds."),
+        ],
+        "watch_for": [
+            _watch(["checks all", "tries every", "all answers at once", "parallel"],
+                   "it doesn't read every answer at once — it reshapes amplitudes so one measurement is likely right."),
+        ],
+    },
+    "hardware": {
+        "key_ideas": [
+            _idea("The ideal simulation is the baseline", ["ideal", "baseline", "simulat", "compare", "expected"],
+                  "the ideal result tells you what the circuit should do."),
+            _idea("Differences come from device noise", ["noise", "error", "readout", "decoher", "imperfect"], "name a noise source."),
+            _idea("Some wobble is just shot noise", ["shot", "sampling", "statistic", "random"], "separate sampling variation from device errors."),
+        ],
+        "watch_for": [],
+    },
+    "real-chip": {
+        "key_ideas": [
+            _idea("Wiring decides which qubits can interact", ["coupling", "connect", "wiring", "neighbour", "neighbor", "layout"],
+                  "different chips connect qubits differently."),
+            _idea("Routing adds SWAPs", ["swap", "rout", "extra cnot", "more cnot", "more gates"], "far-apart qubits need SWAPs to interact."),
+            _idea("More gates means more noise", ["noise", "error", "deeper", "depth"], "every extra gate is another chance for error."),
+        ],
+        "watch_for": [],
+    },
+    "qml": {
+        "key_ideas": [
+            _idea("The rotation angles change", ["angle", "parameter", "θ", "theta", "weight", "knob"], "say what training adjusts."),
+            _idea("A cost measures how wrong it is", ["cost", "loss", "error", "distance", "target"], "say how the optimizer knows how wrong it is."),
+            _idea("The gradient says which way to turn", ["gradient", "downhill", "slope", "derivative", "parameter shift", "optimi"],
+                  "the gradient (e.g. from the parameter-shift rule) points the way."),
+        ],
+        "watch_for": [],
+    },
+}
+
+for _lesson in LESSONS:
+    _lesson.update(RUBRICS.get(_lesson["id"], {"key_ideas": [], "watch_for": []}))
