@@ -42,3 +42,13 @@ def test_playground_and_notebook_pages_render():
     for page in ["Playground", "My notebook", "Course map"]:
         at.session_state["pending_nav"] = page
         _run(at)
+
+
+def test_easy_read_mode_renders_lessons():
+    at = _run(AppTest.from_file(APP, default_timeout=90))
+    at.session_state["reading_mode"] = "plain"
+    at.session_state["pending_nav"] = "Learning path"
+    for stage in (0, 2, 4):
+        at.session_state["learning_stage"] = stage
+        _run(at)
+    assert any("Atkinson Hyperlegible" in block.value for block in at.markdown)

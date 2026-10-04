@@ -81,3 +81,13 @@ def test_markdown_write_up_includes_only_lessons_with_work():
     assert "(correct)" in text and "Measurement samples the arrow." in text
     assert "```python\nqc = QuantumCircuit(2)\n```" in text
     assert LESSONS[1]["title"] not in text
+
+
+def test_reading_mode_is_validated_and_merged():
+    assert nb.sanitize({"reading_mode": "<script>"})["reading_mode"] == "notebook"
+    saved, current = nb.empty(), nb.empty()
+    saved["reading_mode"] = "plain"
+    assert nb.merge(current, saved)["reading_mode"] == "plain"  # keep the saved choice
+    current["reading_mode"] = "plain"
+    saved["reading_mode"] = "notebook"
+    assert nb.merge(current, saved)["reading_mode"] == "plain"  # a change made now wins

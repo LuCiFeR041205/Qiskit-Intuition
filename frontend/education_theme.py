@@ -16,6 +16,8 @@ NOTEBOOK_CSS = """
 @font-face { font-family: "Caveat"; font-weight: 400 700; font-display: swap; src: url("app/static/fonts/Caveat-latin.woff2") format("woff2"); }
 @font-face { font-family: "Patrick Hand"; font-weight: 400; font-display: swap; src: url("app/static/fonts/PatrickHand-latin.woff2") format("woff2"); }
 @font-face { font-family: "Courier Prime"; font-weight: 400; font-display: swap; src: url("app/static/fonts/CourierPrime-Regular-latin.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-display: swap; src: url("app/static/fonts/AtkinsonHyperlegible-Regular-latin.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; font-display: swap; src: url("app/static/fonts/AtkinsonHyperlegible-Bold-latin.woff2") format("woff2"); }
 @font-face { font-family: "Courier Prime"; font-weight: 700; font-display: swap; src: url("app/static/fonts/CourierPrime-Bold-latin.woff2") format("woff2"); }
 
 :root {
@@ -164,6 +166,7 @@ textarea { font-family: var(--type) !important; }
 [data-testid="stSidebar"] * { color: #f1ead6; }
 [data-testid="stSidebar"] hr { border-color: rgba(241,234,214,.18); }
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { color: #cfc6ad !important; }
+.stApp [data-testid="stSidebar"] label, .stApp [data-testid="stSidebar"] label p { color: #f1ead6 !important; }
 
 .brand {
   position: relative;
@@ -583,5 +586,41 @@ table.glossary td:first-child strong { background: linear-gradient(transparent 5
 """
 
 
-def inject_education_theme() -> None:
+# Easy-read mode: same notebook page, but one high-legibility typeface
+# (Atkinson Hyperlegible), sizes rebalanced for it, and nothing tilted.
+READABLE_CSS = """
+<style>
+:root {
+  --hand: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --script: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.stApp p, .stApp li, .stApp label, .stApp [data-testid="stMarkdownContainer"] { font-size: 1.05rem; line-height: 1.7; letter-spacing: .01em; }
+.stApp svg, .stApp svg text { font-family: var(--hand) !important; }
+.stApp h1 { font-size: 2.5rem !important; }
+.stApp h2 { font-size: 1.7rem !important; }
+.stApp h3 { font-size: 1.45rem !important; }
+.stApp h4 { font-size: 1.2rem !important; }
+.page-intro, .intro-note, .explanation-brief blockquote { font-size: 1.2rem; }
+.prediction-prompt > strong { font-size: 1.35rem; }
+.loop-step, .journey-step strong, .stage-kicker, .feel-it strong, .margin-title,
+.content-card > strong, .try-card > strong, .prediction-recap > span, .callout strong,
+.unit-head small, .pair-note, .bit-arrow, .coach-feedback span, .empty-sequence { font-size: 1.1rem !important; }
+.feel-it span, .unit-head strong, .entry-head strong, .challenge-banner strong { font-size: 1.4rem !important; }
+.cover-label .label-title { font-size: 2.4rem; }
+.cover-label .label-line b, .entry-hand, .entry-note, .prob-value, .metric-value { font-size: 1.15rem !important; }
+.bit-cell strong { font-size: 1.9rem; }
+.pair, .shot-chip { font-size: 1.05rem; }
+.brand-name { font-size: 1.5rem; }
+[data-testid="stSidebar"] [role="radiogroup"] label p, [data-testid="stExpander"] summary p { font-size: 1.15rem !important; }
+[class*="st-key-nb-margin-notes"] textarea { font-size: 1.1rem !important; }
+.brand, .cover-label, .content-card, .prediction-recap, .try-card, .callout.warning, .task-card,
+.challenge-banner, .path-context span, .stage-kicker, .feel-it span, .gate-chip, .bit-cell,
+.entry-note, [class*="st-key-nb-margin-notes"], [data-testid="stAlertContainer"] { transform: none !important; }
+</style>
+"""
+
+
+def inject_education_theme(readable: bool = False) -> None:
     st.markdown(NOTEBOOK_CSS, unsafe_allow_html=True)
+    if readable:
+        st.markdown(READABLE_CSS, unsafe_allow_html=True)

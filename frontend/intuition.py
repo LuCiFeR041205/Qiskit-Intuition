@@ -74,9 +74,10 @@ HAND_FONT = _hand_font()
 
 
 @on_qiskit_thread
-def notebook_circuit_figure(engine):
+def notebook_circuit_figure(engine, readable: bool = False):
     """Draw the engine's circuit as if sketched in the notebook: wobbly ink
-    wires, sticky-note gates, handwritten labels."""
+    wires, sticky-note gates, handwritten labels. ``readable`` draws straight
+    lines and plain labels instead."""
     gate_names = ["h", "x", "y", "z", "s", "sdg", "t", "tdg", "rx", "ry", "rz", "p", "u", "sx", "id", "measure", "reset"]
     display = {name: (STICKY, TEAL) for name in gate_names}
     display.update({name: (TEAL, PAPER) for name in ("cx", "cz", "swap")})
@@ -92,15 +93,18 @@ def notebook_circuit_figure(engine):
         "subfontsize": 11,
         "displaycolor": display,
     }
-    with plt.xkcd(scale=0.7, length=150, randomness=1.5):
-        plt.rcParams.update({
-            "path.effects": [],
-            "font.family": HAND_FONT,
-            "mathtext.fontset": "custom",
-            "mathtext.it": HAND_FONT,
-            "mathtext.rm": HAND_FONT,
-        })
+    if readable:
         figure = engine.build_circuit().draw("mpl", style=style)
+    else:
+        with plt.xkcd(scale=0.7, length=150, randomness=1.5):
+            plt.rcParams.update({
+                "path.effects": [],
+                "font.family": HAND_FONT,
+                "mathtext.fontset": "custom",
+                "mathtext.it": HAND_FONT,
+                "mathtext.rm": HAND_FONT,
+            })
+            figure = engine.build_circuit().draw("mpl", style=style)
     figure.patch.set_alpha(0)
     return figure
 
@@ -109,7 +113,7 @@ def render_circuit(engine) -> None:
     """Show the notebook-style circuit drawing at a size that suits its width."""
     import io
 
-    figure = notebook_circuit_figure(engine)
+    figure = notebook_circuit_figure(engine, readable=st.session_state.get("reading_mode") == "plain")
     buffer = io.BytesIO()
     figure.savefig(buffer, format="png", dpi=160, bbox_inches="tight", transparent=True)
     width_px = int(figure.get_size_inches()[0] * 72)
