@@ -11,26 +11,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
+          python-version: "3.11"
 
-      - name: Push to Hugging Face Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      - name: Prepare the Space contents
         run: |
-          if [ -z "$HF_TOKEN" ]; then
-            echo "HF_TOKEN secret is missing."
-            exit 1
-          fi
-
           mkdir -p /tmp/hf-space
-          rsync -av --delete ./ /tmp/hf-space/ \
+          rsync -a --delete ./ /tmp/hf-space/ \
             --exclude '.git/' \
             --exclude '.github/' \
             --exclude 'Qiskit-Intuition/' \
             --exclude 'venv/' \
             --exclude '.venv/' \
-            --exclude 'frontend/node_modules/' \
+            --exclude 'node_modules/' \
             --exclude 'frontend/.vite/' \
             --exclude 'frontend/dist/' \
             --exclude '__pycache__/' \
@@ -44,12 +39,20 @@ jobs:
             --exclude 'ruvector.db' \
             --exclude '.DS_Store'
 
-          cd /tmp/hf-space
-          git init
-          git checkout -b main
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Sync from GitHub ${GITHUB_SHA}"
-          git remote add huggingface "https://j76dvyt4q5-cyber:${HF_TOKEN}@huggingface.co/spaces/j76dvyt4q5-cyber/Qiskit-Intuition"
-          git push --force huggingface main
+      # The Hub rejects binary files (fonts, images) pushed over plain git, so
+      # upload through the Hub client, which stores them with Xet. --delete "*"
+      # removes files that no longer exist here, mirroring the repository; the
+      # Space's .gitattributes is never deleted.
+      - name: Upload to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "HF_TOKEN secret is missing."
+            exit 1
+          fi
+          pip install --quiet "huggingface_hub[hf_xet]"
+          hf upload j76dvyt4q5-cyber/Qiskit-Intuition /tmp/hf-space . \
+            --repo-type space \
+            --delete "*" \
+            --commit-message "Sync from GitHub ${GITHUB_SHA}"
