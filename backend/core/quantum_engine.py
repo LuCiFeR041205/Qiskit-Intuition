@@ -79,6 +79,12 @@ class QuantumEngine:
             elif gate == 'CNOT':
                 ctrl = control if control is not None else (1 - target)
                 qc.cx(ctrl, target)
+            elif gate == 'CZ':
+                ctrl = control if control is not None else (1 - target)
+                qc.cz(ctrl, target)
+            elif gate == 'SWAP':
+                other = control if control is not None else (1 - target)
+                qc.swap(other, target)
         return qc
 
     def get_statevector(self):
@@ -102,12 +108,12 @@ class QuantumEngine:
                 error_2 = depolarizing_error(0.05, 2)
                 
                 noise_model.add_all_qubit_quantum_error(error_1, ['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg', 'rx', 'ry', 'rz'])
-                noise_model.add_all_qubit_quantum_error(error_2, ['cx'])
+                noise_model.add_all_qubit_quantum_error(error_2, ['cx', 'cz', 'swap'])
                 
                 sim = AerSimulator(noise_model=noise_model)
                 # Ensure transpilation uses basic gates to match the noise model
                 from qiskit import transpile
-                t_qc = transpile(qc_measure, basis_gates=['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg', 'rx', 'ry', 'rz', 'cx', 'id'])
+                t_qc = transpile(qc_measure, basis_gates=['h', 'x', 'y', 'z', 's', 'sdg', 't', 'tdg', 'rx', 'ry', 'rz', 'cx', 'cz', 'swap', 'id'])
                 result = sim.run(t_qc, shots=4000).result()
                 counts = result.get_counts(0)
                 
@@ -145,9 +151,10 @@ class QuantumEngine:
                 lines.append(f"qc.tdg({target})")
             elif gate in {'RX', 'RY', 'RZ'}:
                 lines.append(f"qc.{gate.lower()}({float(angle):.6f}, {target})")
-            elif gate == 'CNOT':
+            elif gate in {'CNOT', 'CZ', 'SWAP'}:
                 ctrl = control if control is not None else (1 - target)
-                lines.append(f"qc.cx({ctrl}, {target})")
+                method = {'CNOT': 'cx', 'CZ': 'cz', 'SWAP': 'swap'}[gate]
+                lines.append(f"qc.{method}({ctrl}, {target})")
 
         lines.extend([
             "",
