@@ -11,7 +11,7 @@ share/
 
 # Sensitive Credentials & API Keys
 .env
-.env.*
+*.env
 secrets.toml
 *.log
 *.db
